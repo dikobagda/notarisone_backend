@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "spartan-matter-493312-e6",
+  "private_key_id": "74cbd5cfbc98a399000b379c9449ccf83920b31a",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEugIBADANBgkqhkiG9w0BAQEFAASCBKQwggSgAgEAAoIBAQCa06y8TWojEIbw\nJ48TQzEAbkj/NkCPQ2NDp0KXSe6TSOJ58xgQE4EhKzJypWJoPRIB/5MgBJHNBHkk\nQz4hhHTs2d4rz/ZEjXtgoyaGHWrhatLpGp+XZy3iJKNVHXcRBzw2KYVloVajUpUK\nDkK6/WDmliJFTOBbe5DpBOlWw/wrvoJ1ySX9RrzboUPPS826cURNrKVFNBUC+Oj1\n344QWXIohcOp8lpNAEefra0z8akbKlzMDpZAghdbYkHT6H65wFPoqpnCvomjdE33\n0ZzSKS3o+/JcVC6fzrvKOtk1Y75S4ukR9mNtnNtUjjpoU3p17GmwLJjtVUqo+tWa\nlzSA40i/AgMBAAECggEAN2etZls7sp2c9D7ry+RdGj7dH3suIjZmxNSLl3EtD4bj\nCOntv/8C1DhNnspBS3UjRxTK9Qe9l0TVBx2LE9p/Ly0N/Na4VbLdpmjsBc1sLIua\nOzG8T6VsPYOH8ZMQQ0c4DFfSdVqFkv+f9w/AYIMA1LOAQxVuKj6vTjvkNpj+2jYN\nkIAAfRTIK9Wk+Is/B/Kao2xetQ/iq215LKqd0kvUJ0BOJkjcrxfE4kpL+or63Zhd\nIpCcZVcVxV98AlnB3oRt3DlFbBVyC/WAGPw7baqopzO44APz9VP7jS6iZfFJsPvq\n0dTTWKUkfbnIqvTSWfjELjPz3PSWCTT34ORQausO7QKBgQDNlS9xnHv5vW34Rtwp\nC1cMm8R5MFsGkPvPMxZs4hgU0yDl31nROOv86tlB3yOApequExShDZ5JQoAv09jU\nDTp6HhebKuqCEj/wRblMnCqtCH6V7iX6VFP019ZcQIW1qYks7V8U/XJc8LNWiRic\nDzRJevwFIE96PiKq9cDBOFnfywKBgQDAy/PidpOoNaTQlmwUGSWTCuLRDmrjLA5J\nR+Cb/9nj0yYIBe7wWiiP/5sMiSmuettez0TclDmmdRXGEpOlUn4V6GIsKum75THa\n0oFnrN7T/Yxwsr5mlI+LqBIzCkbB5czlwv9wp1bkShSCfDEtf59AtaTfTj47Xxf3\nwatbd990XQKBgHmQavKSZtjhg8KZHByFIR9KiJ5k0p6KYuw9uFgARd8ijUSAkxrd\nvuXadUe3S8YJ1kDC9aLaa6vEUAp4CbIydE67tpfBg9QQOJC6mfzMJ4wUBs5feUOS\nU+bnLlF0sdwe+QeBAYVm7RY6GsHj5ZJ6hx+gQqBBX93YGiXflfBrgvGLAoGATIBh\nbOoqWyO2G4KkrjDwRPGb4OJ8rVns7U0VJjGWrx04yRQ5pKvRzpnZV1cR8AcWBv/t\nzi0O1ys8kZULex1JpL3KPsZkasdeSfsfmBjzbmD8mjeC78dhUkRFvHUGcKgT7tO6\ncmQkSX/PtZs8FFbAxXeOTYGJlht8sjXqHehqBY0Cf0q4DqdrWefnjz73LLaxX5FS\nAnRRlSrF0KF1WK5o3Q+Oa7rMe5ZCXxD+8RHFu147TMF0aUGa8/LQKRODwGbFYlTc\nSMN5xxNIsnKhie3EXU+ntAdYt+wCmFDsZAj1+2We6Cb2RWcc+dUElxe0Iv/lq62X\niuslJLY1ynFKPP/86io=\n-----END PRIVATE KEY-----\n",
+  "client_email": "notarisone@spartan-matter-493312-e6.iam.gserviceaccount.com",
+  "client_id": "110184135965348944318",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/notarisone%40spartan-matter-493312-e6.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

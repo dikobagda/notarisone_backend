@@ -1,0 +1,415 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Tenant {
+  id              String             @id @default(cuid())
+  name            String
+  subdomain       String?            @unique
+  address         String?
+  status          TenantStatus       @default(ACTIVE)
+  subscription    TenantSubscription @default(TRIAL)
+  trialExpiresAt        DateTime?
+  subscriptionExpiresAt DateTime?
+  lastPaymentId         String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+  appointments    Appointment[]
+  auditLogs       AuditLog[]
+  clients         Client[]
+  deeds           Deed[]
+  invoices        Invoice[]
+  protocolEntries ProtocolEntry[]
+  tenantTeams     TenantTeams[]
+  users           User[]
+}
+
+model TenantTeams {
+  id         String    @id @default(cuid())
+  tenantId   String
+  email      String
+  role       UserRole  @default(PEGAWAI)
+  token      String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  phone      String?
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model User {
+  id               String     @id @default(cuid())
+  email            String     @unique
+  password         String
+  name             String
+  role             UserRole   @default(PEGAWAI)
+  tenantId         String
+  resetToken       String?    @unique
+  resetTokenExpiry DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+  phone            String?
+  googleAccessToken    String?    @db.Text
+  googleRefreshToken   String?    @db.Text
+  googleTokenExpiry    DateTime?
+  googleCalendarId     String?
+  isLocked             Boolean    @default(false)
+  auditLogs            AuditLog[]
+  deedsCreated         Deed[]     @relation("CreatedBy")
+  appointments         Appointment[]
+  tenant               Tenant     @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId], map: "User_tenantId_fkey")
+}
+
+model Client {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  name               String
+  nik                String            @unique
+  npwp               String?
+  pob                String?
+  dob                String?
+  address            String
+  phone              String?
+  email              String?
+  ktpPath            String?
+  npwpPath           String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  deeds              Deed[]
+  stakeholderInDeeds DeedStakeholder[]
+  appointments       Appointment[]
+  invoices           Invoice[]
+
+  @@index([tenantId], map: "Client_tenantId_fkey")
+}
+
+model Deed {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  title              String
+  type               DeedType
+  deedNumber         String?           @unique
+  status             DeedStatus        @default(DRAFT)
+  targetFinalization DateTime?
+  scanPath           String?
+  scanSize           BigInt            @default(0)
+  attachments        Json?
+  createdById        String
+  clientId           String
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  deletedAt          DateTime?
+  client             Client            @relation(fields: [clientId], references: [id])
+  createdBy          User              @relation("CreatedBy", fields: [createdById], references: [id])
+  tenant             Tenant            @relation(fields: [tenantId], references: [id])
+  stakeholders       DeedStakeholder[]
+  versions           DeedVersion[]
+  invoices           Invoice[]
+  ppatData           PpatMetadata?
+  appointments       Appointment[]
+  protocolEntries    ProtocolEntry[]
+
+  @@index([clientId], map: "Deed_clientId_fkey")
+  @@index([createdById], map: "Deed_createdById_fkey")
+  @@index([tenantId], map: "Deed_tenantId_fkey")
+}
+
+model DeedStakeholder {
+  id        String   @id @default(cuid())
+  deedId    String
+  clientId  String?
+  name      String
+  role      String
+  ktpPath   String?
+  ktpSize   BigInt   @default(0)
+  npwpPath  String?
+  npwpSize  BigInt   @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  client    Client?  @relation(fields: [clientId], references: [id])
+  deed      Deed     @relation(fields: [deedId], references: [id])
+
+  @@index([clientId], map: "DeedStakeholder_clientId_fkey")
+  @@index([deedId], map: "DeedStakeholder_deedId_fkey")
+}
+
+model DeedVersion {
+  id                String   @id @default(cuid())
+  deedId            String
+  versionNumber     Int
+  gcsPath           String
+  fileSize          BigInt   @default(0)
+  checksum          String?
+  googleDriveFileId String?
+  createdAt         DateTime @default(now())
+  deed              Deed     @relation(fields: [deedId], references: [id])
+
+  @@index([deedId], map: "DeedVersion_deedId_fkey")
+}
+
+model ProtocolEntry {
+  id                String   @id @default(cuid())
+  tenantId          String
+  deedId            String
+  repertoriumNumber String
+  date              DateTime @default(now())
+  description       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deed              Deed     @relation(fields: [deedId], references: [id])
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([deedId], map: "ProtocolEntry_deedId_fkey")
+  @@index([tenantId], map: "ProtocolEntry_tenantId_fkey")
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  tenantId    String
+  deedId      String?
+  clientId    String?
+  userId      String?           // Staff assigned to appointment
+  title       String
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  description String?
+  status      AppointmentStatus @default(PENDING)
+  type        AppointmentType   @default(OTHER)
+  googleEventId String?
+  createdAt     DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  deletedAt   DateTime?
+  client      Client?           @relation(fields: [clientId], references: [id])
+  deed        Deed?             @relation(fields: [deedId], references: [id])
+  assignedTo  User?             @relation(fields: [userId], references: [id])
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+
+  @@index([clientId], map: "Appointment_clientId_fkey")
+  @@index([deedId], map: "Appointment_deedId_fkey")
+  @@index([tenantId], map: "Appointment_tenantId_fkey")
+  @@index([userId], map: "Appointment_userId_fkey")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  payload    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([tenantId], map: "AuditLog_tenantId_fkey")
+  @@index([userId], map: "AuditLog_userId_fkey")
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  name      String
+  role      AdminRole @default(STAFF)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  clientId      String
+  deedId        String?
+  invoiceNumber String        @unique
+  status        InvoiceStatus @default(UNPAID)
+  subtotal      Decimal       @db.Decimal(15, 2)
+  taxAmount     Decimal       @db.Decimal(15, 2)
+  totalAmount   Decimal       @db.Decimal(15, 2)
+  dueDate       DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  client        Client        @relation(fields: [clientId], references: [id])
+  deed          Deed?         @relation(fields: [deedId], references: [id])
+  tenant        Tenant        @relation(fields: [tenantId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+
+  @@index([clientId], map: "Invoice_clientId_fkey")
+  @@index([deedId], map: "Invoice_deedId_fkey")
+  @@index([tenantId], map: "Invoice_tenantId_fkey")
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(15, 2)
+  taxable     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId], map: "InvoiceItem_invoiceId_fkey")
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  invoiceId       String
+  amount          Decimal       @db.Decimal(15, 2)
+  method          PaymentMethod
+  status          PaymentStatus @default(SUCCESS)
+  pgTransactionId String?
+  paymentDate     DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  invoice         Invoice       @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId], map: "Payment_invoiceId_fkey")
+}
+
+model DeedTemplate {
+  id        String   @id @default(cuid())
+  title     String
+  type      DeedType
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PpatMetadata {
+  id           String   @id @default(cuid())
+  deedId       String   @unique
+  nop          String?
+  luasTanah    Float?
+  luasBangunan Float?
+  lokasiAlamat String?  @db.Text
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deed         Deed     @relation(fields: [deedId], references: [id], onDelete: Cascade)
+}
+
+model SubscriptionPlan {
+  id          String   @id @default(cuid())
+  slug        TenantSubscription @unique
+  name        String
+  tagline     String?
+  description String?  @db.Text
+  price       Decimal  @db.Decimal(15, 2)
+  features    Json     // Array of { text: string, icon?: string }
+  isPopular   Boolean  @default(false)
+  status      String   @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum TenantSubscription {
+  TRIAL
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum UserRole {
+  NOTARIS
+  PEGAWAI
+  KLIEN
+}
+
+enum AdminRole {
+  SUPERADMIN
+  STAFF
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+}
+
+enum DeedStatus {
+  DRAFT
+  PENDING_CLIENT
+  FINAL
+  INVALIDATED
+}
+
+enum DeedType {
+  PENDIRIAN_PT
+  PENDIRIAN_CV
+  PENDIRIAN_YAYASAN
+  PENDIRIAN_PERKUMPULAN
+  AD_PERUBAHAN
+  JUAL_BELI
+  SEWA_MENYUWA
+  HIBAH
+  KERJASAMA
+  KREDIT
+  WASIAT
+  KUASA_MENJUAL
+  PPJB
+  RUPS
+  LAINNYA
+  AJB
+  TUKAR_MENUKAR
+  INBRENG
+  APHB
+  APHT
+  APHT_NOVASI
+  SKMHT
+  HGB
+  HGU
+  HP
+  PPAT
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  GATEWAY
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum AppointmentType {
+  SIGNING
+  CONSULTATION
+  FIELD_SURVEY
+  BPN_COORDINATION
+  OTHER
+}
