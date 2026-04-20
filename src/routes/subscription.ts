@@ -176,8 +176,44 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // Robust extraction: check multiple possible casing/field names
-    const tenantId = metadata?.tenantId || metadata?.tenant_id || payload.tenant_id;
-    const tier = metadata?.tier || metadata?.tier_name || payload.tier;
+    let tenantId = metadata?.tenantId || metadata?.tenant_id || payload.tenant_id;
+    let tier = metadata?.tier || metadata?.tier_name || payload.tier;
+
+    // --- FALLBACK 1: Extract tenantId from external_id ---
+    // Format: inv-{tenantId}-{timestamp}
+    if (!tenantId && externalId && typeof externalId === 'string' && externalId.startsWith('inv-')) {
+      const parts = externalId.split('-');
+      if (parts.length >= 3) {
+        tenantId = parts[1];
+        console.log(`[Webhook] Fallback: Extracted tenantId ${tenantId} from external_id`);
+      }
+    }
+
+    // --- FALLBACK 2: Extract tier from item name ---
+    if (!tier && payload.items && payload.items.length > 0) {
+      const itemName = payload.items[0].name.toUpperCase();
+      if (itemName.includes('STARTER')) tier = 'STARTER';
+      else if (itemName.includes('PROFESSIONAL')) tier = 'PROFESSIONAL';
+      else if (itemName.includes('ENTERPRISE')) tier = 'ENTERPRISE';
+      
+      if (tier) console.log(`[Webhook] Fallback: Extracted tier ${tier} from item name`);
+    }
+
+    // --- FALLBACK 3: Search XenditLog for the original checkout metadata ---
+    if (!tier && externalId) {
+      try {
+        const originalLog = await prisma.xenditLog.findFirst({
+          where: { externalId: externalId, type: 'CHECKOUT_REQUEST' }
+        });
+        if (originalLog && originalLog.payload) {
+          const originalPayload = originalLog.payload as any;
+          tier = originalPayload.metadata?.tier;
+          console.log(`[Webhook] Fallback: Extracted tier ${tier} from XenditLog`);
+        }
+      } catch (e) {
+         // ignore
+      }
+    }
 
     if (!tenantId || !tier) {
       console.error(`[Webhook] CRITICAL: Missing data. tenantId: ${tenantId}, tier: ${tier}, externalId: ${externalId}`);
