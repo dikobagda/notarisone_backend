@@ -110,10 +110,10 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     const payload = request.body as any;
     console.log(`[Webhook] Raw Payload:`, JSON.stringify(payload, null, 2));
     
-    // We're looking for 'PAID' status
-    if (payload.status !== 'PAID') {
+    // We're looking for 'PAID' or 'SETTLED' status
+    if (!['PAID', 'SETTLED'].includes(payload.status)) {
       console.log(`[Webhook] Ignoring status: ${payload.status}`);
-      return reply.send({ message: 'Webhook received but ignored (not PAID status)' });
+      return reply.send({ message: `Webhook received but ignored (status: ${payload.status})` });
     }
 
     const externalId = payload.external_id || payload.id;
@@ -132,10 +132,16 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     const tier = metadata?.tier;
 
     if (!tenantId || !tier) {
-      console.error(`[Webhook] CRITICAL: Missing metadata (tenantId: ${tenantId}, tier: ${tier}) for External ID: ${externalId}`);
+      console.error(`[Webhook] CRITICAL: Missing data. tenantId: ${tenantId}, tier: ${tier}, externalId: ${externalId}`);
       // Log the structure to help debugging
-      console.log(`[Webhook] Inspecting metadata structure:`, JSON.stringify(metadata, null, 2));
-      return reply.code(400).send({ success: false, message: 'Invalid metadata structure' });
+      console.log(`[Webhook] Inspecting payload keys:`, Object.keys(payload));
+      if (payload.metadata) console.log(`[Webhook] Metadata content:`, JSON.stringify(payload.metadata, null, 2));
+      
+      return reply.code(400).send({ 
+        success: false, 
+        message: 'Invalid metadata structure',
+        details: { tenantId: !!tenantId, tier: !!tier }
+      });
     }
 
     try {
@@ -213,6 +219,25 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.sendSuccess(plans);
     } catch (error) {
       return reply.sendError('Gagal mengambil daftar paket');
+    }
+  });
+
+  // GET /api/subscription/debug - Raw database status for debugging
+  fastify.get('/debug', async (request, reply) => {
+    const tenantId = (request as any).tenantId || (request.query as any).tenantId;
+    if (!tenantId) return reply.sendError('Tenant ID missing');
+
+    try {
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+      });
+      return reply.send({
+        success: true,
+        currentTime: new Date().toISOString(),
+        data: tenant
+      });
+    } catch (error: any) {
+      return reply.sendError(`Debug failed: ${error.message}`);
     }
   });
 };
