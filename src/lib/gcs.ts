@@ -1,7 +1,7 @@
 import { Storage } from '@google-cloud/storage';
 import path from 'path';
 
-const KEY_PATH = path.resolve(__dirname, '../../google-service-account.json');
+const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
 
 // Early check to help user
 import fs from 'fs';
