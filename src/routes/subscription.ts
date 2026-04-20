@@ -163,7 +163,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({ message: `Webhook received but ignored (status: ${payload.status})` });
     }
 
-    const externalId = payload.external_id || payload.id;
+
     let metadata = payload.metadata;
 
     // Sometimes metadata is sent as a JSON string by third-party systems or testing tools
@@ -276,6 +276,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     
     try {
       let tenant = null;
+      if (tenantId) {
         tenant = await prisma.tenant.findUnique({ 
           where: { id: tenantId },
           include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }

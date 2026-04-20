@@ -79,7 +79,7 @@ class GoogleCalendarService {
         const event = {
             summary: `[NotarisOne] ${appointment.title}`,
             location: appointment.location || '',
-            description: `${appointment.description || ''}\n\nClient: ${appointment.client?.name || 'N/A'}\nAkta: ${appointment.deed?.title || 'N/A'}\nLink: http://localhost:3000/dashboard/jadwal`,
+            description: `${appointment.description || ''}\n\nClient: ${appointment.client?.name || 'N/A'}\nAkta: ${appointment.deed?.title || 'N/A'}\nLink: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/jadwal`,
             start: {
                 dateTime: appointment.startTime.toISOString(),
                 timeZone: 'Asia/Jakarta',

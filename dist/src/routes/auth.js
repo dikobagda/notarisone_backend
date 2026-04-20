@@ -88,7 +88,7 @@ const authApiRoutes = async (fastify) => {
             data: { resetToken, resetTokenExpiry }
         });
         // Send Email
-        const resetUrl = `http://localhost:3000/auth/reset-password?token=${resetToken}`;
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
         try {
             await transporter.sendMail({
                 from: '"NotarisOne Security" <security@notarisone.com>',
@@ -364,7 +364,7 @@ const authApiRoutes = async (fastify) => {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
                 <tr>
                   <td align="center">
-                    <a href="http://localhost:3000/dashboard"
+                    <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard"
                        style="display:inline-block;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:14px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:12px;letter-spacing:0.3px;box-shadow:0 8px 24px rgba(79,70,229,0.35);">
                       Buka Dashboard →
                     </a>

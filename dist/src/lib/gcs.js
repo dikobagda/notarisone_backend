@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadFromGcs = exports.getSignedReadUrl = exports.generateUploadUrl = exports.uploadToGcs = void 0;
 const storage_1 = require("@google-cloud/storage");
 const path_1 = __importDefault(require("path"));
-const KEY_PATH = path_1.default.resolve(__dirname, '../../google-service-account.json');
+const KEY_PATH = path_1.default.join(process.cwd(), 'google-service-account.json');
 // Early check to help user
 const fs_1 = __importDefault(require("fs"));
 if (!fs_1.default.existsSync(KEY_PATH)) {

@@ -64,7 +64,7 @@ async function sendDeedNotification(to, template, context) {
     `;
     }
     else if (template === 'TEAM_INVITATION') {
-        const inviteUrl = `http://localhost:3000/auth/join?token=${context.token}`;
+        const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/join?token=${context.token}`;
         subject = `[NotarisOne] Undangan Bergabung: ${context.kantorName}`;
         html = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">

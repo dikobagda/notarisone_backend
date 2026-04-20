@@ -83,6 +83,13 @@ server.register(subscription_1.default, { prefix: '/api/subscription' });
 server.register(gdocs_1.default, { prefix: '/api/gdocs' });
 server.register(notifications_1.default, { prefix: '/api/notifications' });
 // Health Check
+server.get('/', async (request, reply) => {
+    return {
+        message: 'Welcome to NotarisOne Backend API',
+        status: 'Running',
+        documentation: '/health'
+    };
+});
 server.get('/health', async (request, reply) => {
     return { status: 'OK', timestamp: new Date().toISOString() };
 });
