@@ -94,6 +94,14 @@ server.register(gdocsRoutes, { prefix: '/api/gdocs' });
 server.register(notificationRoutes, { prefix: '/api/notifications' });
 
 // Health Check
+server.get('/', async (request, reply) => {
+  return { 
+    message: 'Welcome to NotarisOne Backend API',
+    status: 'Running',
+    documentation: '/health'
+  };
+});
+
 server.get('/health', async (request, reply) => {
   return { status: 'OK', timestamp: new Date().toISOString() };
 });
