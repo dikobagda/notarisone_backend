@@ -54,8 +54,8 @@ const gdocsRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.sendSuccess({ url: link }, 'Berhasil membuka di Google Docs');
     } catch (error: any) {
-      request.log.error(error);
-      return reply.sendError(error.message || 'Gagal menyiapkan integrasi Google Docs', 500);
+      request.log.error(`[GDOCS OPEN ERROR] ${error.message}`);
+      return reply.sendError(`Gagal menyiapkan integrasi Google Docs: ${error.message}`, 500);
     }
   });
 
@@ -106,8 +106,8 @@ const gdocsRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.sendSuccess({ newVersion }, 'Perubahan berhasil ditarik dan disimpan sebagai versi baru');
     } catch (error: any) {
-      request.log.error(error);
-      return reply.sendError(error.message || 'Gagal menarik perubahan dari Google Docs', 500);
+      request.log.error(`[GDOCS SYNC ERROR] ${error.message}`);
+      return reply.sendError(`Gagal menarik perubahan dari Google Docs: ${error.message}`, 500);
     }
   });
 

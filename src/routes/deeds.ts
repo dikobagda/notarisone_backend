@@ -508,9 +508,9 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
       });
 
       return reply.sendSuccess({ gcsPath: gsPath, debugType: normalizedType, actionLog }, 'Dokumen berhasil diunggah');
-    } catch (error) {
+    } catch (error: any) {
       request.log.error(error);
-      return reply.sendError('Gagal mengunggah dokumen');
+      return reply.sendError(`Gagal mengunggah dokumen: ${error.message || 'Terjadi kesalahan sistem'}`);
     }
   });
 

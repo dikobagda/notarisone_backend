@@ -3,7 +3,7 @@ import path from 'path';
 import { uploadToGcs } from './gcs';
 
 // Path to service account key
-const KEY_PATH = path.join(process.cwd(), 'gcpkey.json');
+const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
 
 const visionClient = new ImageAnnotatorClient({
   keyFilename: KEY_PATH,

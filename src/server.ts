@@ -25,6 +25,7 @@ import appointmentRoutes from './routes/appointments';
 import googleRoutes from './routes/google';
 import subscriptionRoutes from './routes/subscription';
 import gdocsRoutes from './routes/gdocs';
+import notificationRoutes from './routes/notifications';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
 import { prisma } from './lib/prisma';
@@ -90,6 +91,7 @@ server.register(appointmentRoutes, { prefix: '/api/appointments' });
 server.register(googleRoutes, { prefix: '/api/google' });
 server.register(subscriptionRoutes, { prefix: '/api/subscription' });
 server.register(gdocsRoutes, { prefix: '/api/gdocs' });
+server.register(notificationRoutes, { prefix: '/api/notifications' });
 
 // Health Check
 server.get('/health', async (request, reply) => {
