@@ -94,6 +94,14 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
+  // GET /api/subscription/webhook - Simple check for debugging
+  fastify.get('/webhook', async (request, reply) => {
+    return reply.send({ 
+      status: 'OK', 
+      message: 'Subscription Webhook is active and waiting for POST requests from Xendit.' 
+    });
+  });
+
   // POST /api/subscription/webhook - Handle payment callback from Xendit
   fastify.post('/webhook', async (request, reply) => {
     const callbackToken = request.headers['x-callback-token'];
