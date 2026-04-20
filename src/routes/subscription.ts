@@ -81,6 +81,22 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         data: invoiceData
       });
 
+      // DATABASE LOGGING FOR CHECKOUT REQUEST
+      try {
+        await prisma.xenditLog.create({
+          data: {
+            tenantId: tenant.id,
+            externalId: xenditInvoice.externalId,
+            type: 'CHECKOUT_REQUEST',
+            status: 'PENDING',
+            payload: JSON.parse(JSON.stringify(invoiceData)),
+            response: JSON.parse(JSON.stringify(xenditInvoice))
+          }
+        });
+      } catch (logErr) {
+        console.error(`[Checkout] Failed to log to database:`, logErr);
+      }
+
       return reply.sendSuccess({
         invoiceUrl: xenditInvoice.invoiceUrl,
         externalId: xenditInvoice.externalId
@@ -111,19 +127,27 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     console.log(`[Webhook] Incoming request from Xendit. Headers:`, JSON.stringify(request.headers, null, 2));
 
     const payload = request.body as any;
+    const externalId = payload.external_id || payload.id;
     
-    // --- DEEP DEBUG LOGGING ---
+    // --- DATABASE LOGGING ---
     try {
-      const logMessage = `\n--- WEBHOOK RECEIVED [${new Date().toISOString()}] ---\n` +
-                         `Headers: ${JSON.stringify(request.headers, null, 2)}\n` +
-                         `Payload: ${JSON.stringify(payload, null, 2)}\n` +
-                         `-------------------------------------------\n`;
-      fs.appendFileSync(path.join(process.cwd(), 'webhook_raw.log'), logMessage);
-      console.log(`[Webhook] Raw payload captured to webhook_raw.log`);
-    } catch (logErr) {
-      console.error(`[Webhook] Failed to write to raw log:`, logErr);
+      await prisma.xenditLog.create({
+        data: {
+          tenantId: (request as any).tenantId || null, // Might be null if auth failed but we proceed
+          externalId: externalId,
+          type: 'WEBHOOK_RECEIVED',
+          status: payload.status,
+          payload: JSON.parse(JSON.stringify(payload)),
+          headers: JSON.parse(JSON.stringify(request.headers))
+        }
+      });
+      console.log(`[Webhook] Raw payload captured to database (XenditLog)`);
+    } catch (dbErr) {
+      console.error(`[Webhook] Failed to write to XenditLog table:`, dbErr);
     }
     // ---------------------------
+
+    // --- DEEP DEBUG LOGGING (FILE) ---
 
     // Verify token (Relaxed for debugging - will only WARN but not block)
     if (expectedToken && callbackToken !== expectedToken) {
@@ -252,21 +276,31 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     
     try {
       let tenant = null;
-      if (tenantId) {
-        tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+        tenant = await prisma.tenant.findUnique({ 
+          where: { id: tenantId },
+          include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
+        });
       } else if (email) {
         const user = await prisma.user.findUnique({ 
           where: { email },
-          include: { tenant: true }
+          include: { 
+            tenant: {
+              include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
+            }
+          }
         });
         tenant = user?.tenant;
       } else if (name) {
-        tenant = await prisma.tenant.findFirst({ where: { name: { contains: name } } });
+        tenant = await prisma.tenant.findFirst({ 
+          where: { name: { contains: name } },
+          include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
+        });
       } else {
         // Just return the last 5 tenants if no filter
         const tenants = await prisma.tenant.findMany({
           take: 5,
-          orderBy: { createdAt: 'desc' }
+          orderBy: { createdAt: 'desc' },
+          include: { xenditLogs: { take: 1, orderBy: { createdAt: 'desc' } } }
         });
         return reply.send({ success: true, message: 'No filter provided, showing latest 5 tenants', data: tenants });
       }

@@ -28,6 +28,7 @@ model Tenant {
   tenantTeams     TenantTeams[]
   users           User[]
   notifications   Notification[]
+  xenditLogs      XenditLog[]
 }
 
 model TenantTeams {
@@ -439,4 +440,21 @@ enum NotificationType {
   SUCCESS
   URGENT
   WARNING
+}
+
+model XenditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  externalId String?
+  type       String   // 'CHECKOUT_REQUEST', 'WEBHOOK_RECEIVED'
+  status     String?
+  payload    Json
+  response   Json?
+  headers    Json?
+  createdAt  DateTime @default(now())
+  
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id])
+  
+  @@index([tenantId])
+  @@index([externalId])
 }
