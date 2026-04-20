@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authApiRoutes = void 0;
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));

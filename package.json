@@ -7,7 +7,7 @@
     "dev": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -r tsconfig-paths/register src/server.ts",
     "generate": "prisma generate",
     "postinstall": "prisma generate",
-    "build": "prisma generate && tsc",
+    "build": "prisma generate && tsc && tsc-alias",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -42,6 +42,7 @@
     "dotenv": "^17.4.2",
     "prisma": "^7.7.0",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.2"
   },

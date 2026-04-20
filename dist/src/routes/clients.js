@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const gcs_1 = require("../lib/gcs");
 const zod_1 = require("zod");
 const clientSchema = zod_1.z.object({

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const repertoriumRoutes = async (fastify) => {
     // Get monthly repertorium entries
     fastify.get('/monthly', {

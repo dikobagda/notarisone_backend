@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const tenantStatusSchema = zod_1.z.object({

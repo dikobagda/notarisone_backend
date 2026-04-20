@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fastify_plugin_1 = __importDefault(require("fastify-plugin"));
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
 const authPlugin = async (fastify) => {
