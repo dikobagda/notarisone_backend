@@ -29,6 +29,7 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       request.url.startsWith('/api/backauth') ||
       request.url.startsWith('/api/subscription/plans') ||
       request.url.startsWith('/api/subscription/webhook') ||
+      request.url.startsWith('/api/subscription/debug') ||
       request.url.startsWith('/api/google/save-tokens')
     ) {
       return;

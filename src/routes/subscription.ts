@@ -224,13 +224,31 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/subscription/debug - Raw database status for debugging
   fastify.get('/debug', async (request, reply) => {
-    const tenantId = (request as any).tenantId || (request.query as any).tenantId;
-    if (!tenantId) return reply.sendError('Tenant ID missing');
-
+    const { tenantId, email, name } = request.query as any;
+    
     try {
-      const tenant = await prisma.tenant.findUnique({
-        where: { id: tenantId },
-      });
+      let tenant = null;
+      if (tenantId) {
+        tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+      } else if (email) {
+        const user = await prisma.user.findUnique({ 
+          where: { email },
+          include: { tenant: true }
+        });
+        tenant = user?.tenant;
+      } else if (name) {
+        tenant = await prisma.tenant.findFirst({ where: { name: { contains: name } } });
+      } else {
+        // Just return the last 5 tenants if no filter
+        const tenants = await prisma.tenant.findMany({
+          take: 5,
+          orderBy: { createdAt: 'desc' }
+        });
+        return reply.send({ success: true, message: 'No filter provided, showing latest 5 tenants', data: tenants });
+      }
+
+      if (!tenant) return reply.sendError('Tenant not found');
+
       return reply.send({
         success: true,
         currentTime: new Date().toISOString(),
