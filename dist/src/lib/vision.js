@@ -9,7 +9,7 @@ const vision_1 = require("@google-cloud/vision");
 const path_1 = __importDefault(require("path"));
 const gcs_1 = require("./gcs");
 // Path to service account key
-const KEY_PATH = path_1.default.join(process.cwd(), 'gcpkey.json');
+const KEY_PATH = path_1.default.join(process.cwd(), 'google-service-account.json');
 const visionClient = new vision_1.ImageAnnotatorClient({
     keyFilename: KEY_PATH,
 });

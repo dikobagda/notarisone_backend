@@ -10,11 +10,11 @@ const SOFT_DELETE_MODELS = new Set([
   'Appointment',
 ]);
 
-export const softDeleteExtension = Prisma.defineExtension((client) => {
+export const softDeleteExtension = Prisma.defineExtension((client: any) => {
   return client.$extends({
     query: {
       $allModels: {
-        async delete({ model, args }) {
+        async delete({ model, args }: { model: string; args: any }) {
           if (!SOFT_DELETE_MODELS.has(model)) {
             return (client as any)[model].delete(args);
           }
@@ -23,7 +23,7 @@ export const softDeleteExtension = Prisma.defineExtension((client) => {
             data: { deletedAt: new Date() },
           });
         },
-        async deleteMany({ model, args }) {
+        async deleteMany({ model, args }: { model: string; args: any }) {
           if (!SOFT_DELETE_MODELS.has(model)) {
             return (client as any)[model].deleteMany(args);
           }
@@ -32,13 +32,13 @@ export const softDeleteExtension = Prisma.defineExtension((client) => {
             data: { deletedAt: new Date() },
           });
         },
-        async findFirst({ model, args, query }) {
+        async findFirst({ model, args, query }: { model: string; args: any; query: (args: any) => Promise<any> }) {
           if (SOFT_DELETE_MODELS.has(model)) {
             args.where = { ...args.where, deletedAt: null } as any;
           }
           return query(args);
         },
-        async findMany({ model, args, query }) {
+        async findMany({ model, args, query }: { model: string; args: any; query: (args: any) => Promise<any> }) {
           if (SOFT_DELETE_MODELS.has(model)) {
             args.where = { ...args.where, deletedAt: null } as any;
           }

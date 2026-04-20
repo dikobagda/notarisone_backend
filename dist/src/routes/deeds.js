@@ -32,12 +32,21 @@ const deedRoutes = async (fastify) => {
         const { tenantId } = request.query;
         if (!tenantId)
             return reply.sendError('Tenant ID wajib disertakan');
-        const deeds = await prisma_1.prisma.deed.findMany({
-            where: { tenantId, deletedAt: null },
-            include: { client: true, createdBy: true, stakeholders: true, ppatData: true },
-            orderBy: { createdAt: 'desc' },
-        });
-        return reply.sendSuccess(deeds);
+        try {
+            const deeds = await prisma_1.prisma.deed.findMany({
+                where: { tenantId, deletedAt: null },
+                include: { client: true, createdBy: true, stakeholders: true, ppatData: true },
+                orderBy: { createdAt: 'desc' },
+            });
+            console.log(`[DEBUG] Found ${deeds.length} deeds for tenant ${tenantId}`);
+            // FOOLPROOF: Recursive BigInt to Number conversion before sending
+            const safeDeeds = JSON.parse(JSON.stringify(deeds, (key, value) => typeof value === 'bigint' ? Number(value) : value));
+            return reply.sendSuccess(safeDeeds);
+        }
+        catch (error) {
+            console.error("[DEBUG] Error fetching deeds in route:", error);
+            return reply.sendError('Gagal memuat daftar akta. Cek log server untuk detail.');
+        }
     });
     // GET Preview URL for GCS objects
     fastify.get('/files/preview', async (request, reply) => {
@@ -199,7 +208,12 @@ const deedRoutes = async (fastify) => {
                 const draftPath = `deeds/${deed.id}/draft/${Date.now()}_${draftFile.filename}`;
                 const gsPath = await (0, gcs_1.uploadToGcs)(draftFile.buffer, draftPath, draftFile.mimetype);
                 await prisma_1.prisma.deedVersion.create({
-                    data: { deedId: deed.id, versionNumber: 1, gcsPath: gsPath }
+                    data: {
+                        deedId: deed.id,
+                        versionNumber: 1,
+                        gcsPath: gsPath,
+                        fileSize: draftFile.buffer.length
+                    }
                 });
             }
             // Handle Stakeholders & their files
@@ -224,7 +238,9 @@ const deedRoutes = async (fastify) => {
                             role: s.role,
                             clientId: s.clientId,
                             ktpPath,
-                            npwpPath
+                            ktpSize: ktpPart ? ktpPart.buffer.length : 0,
+                            npwpPath,
+                            npwpSize: npwpPart ? npwpPart.buffer.length : 0
                         }
                     });
                 }
@@ -316,7 +332,7 @@ const deedRoutes = async (fastify) => {
             }
             else {
                 const fieldname = part.fieldname.trim();
-                const value = part.value;
+                const value = part.value?.trim();
                 if (fieldname === 'type')
                     type = value;
                 if (fieldname === 'deedNumber')
@@ -325,8 +341,9 @@ const deedRoutes = async (fastify) => {
                     stakeholderId = value;
             }
         }
-        console.log(`[UPLOAD] Derived Data - Type: ${type}, DeedNumber: "${deedNumber}", StakeholderId: ${stakeholderId}, GotFile: ${!!filePart}`);
-        if (!filePart || !type) {
+        const normalizedType = type?.toLowerCase();
+        console.log(`[UPLOAD] Processing - DeedId: ${id}, Type: "${type}", Normalized: "${normalizedType}", DeedNumber: "${deedNumber}", GotFile: ${!!filePart}`);
+        if (!filePart || !normalizedType) {
             return reply.code(400).send({ success: false, message: 'File dan tipe dokumen wajib disertakan' });
         }
         try {
@@ -335,38 +352,52 @@ const deedRoutes = async (fastify) => {
             });
             if (!deed)
                 return reply.sendError('Akta tidak ditemukan', 404);
-            if (deed.status === 'FINAL' && type === 'draft') {
+            if (deed.status === 'FINAL' && normalizedType === 'draft') {
                 return reply.sendError('Tidak dapat menambahkan draf pada akta yang sudah FINAL', 403);
             }
-            const filePath = `deeds/${id}/${type}/${Date.now()}_${filePart.filename.replace(/\s+/g, '_')}`;
+            const filePath = `deeds/${id}/${normalizedType}/${Date.now()}_${filePart.filename.replace(/\s+/g, '_')}`;
             const gsPath = await (0, gcs_1.uploadToGcs)(filePart.buffer, filePath, filePart.mimetype);
             let actionLog = 'UPLOAD_DEED_DOCUMENT';
-            if (type === 'stakeholder_ktp' || type === 'stakeholder_npwp') {
+            if (normalizedType === 'stakeholder_ktp' || normalizedType === 'stakeholder_npwp') {
+                console.log(`[UPLOAD] Routing to STAKEHOLDER path`);
                 if (!stakeholderId)
                     return reply.sendError('Stakeholder ID wajib disertakan untuk tipe ini');
                 const updateData = {};
-                if (type === 'stakeholder_ktp')
+                if (normalizedType === 'stakeholder_ktp') {
                     updateData.ktpPath = gsPath;
-                else
+                    updateData.ktpSize = BigInt(filePart.buffer.length);
+                }
+                else {
                     updateData.npwpPath = gsPath;
+                    updateData.npwpSize = BigInt(filePart.buffer.length);
+                }
                 await prisma_1.prisma.deedStakeholder.update({
                     where: { id: stakeholderId },
                     data: updateData
                 });
-                actionLog = type === 'stakeholder_ktp' ? 'UPLOAD_STAKEHOLDER_KTP' : 'UPLOAD_STAKEHOLDER_NPWP';
+                actionLog = normalizedType === 'stakeholder_ktp' ? 'UPLOAD_STAKEHOLDER_KTP' : 'UPLOAD_STAKEHOLDER_NPWP';
             }
-            else if (type === 'draft') {
+            else if (normalizedType === 'draft') {
+                console.log(`[UPLOAD] Routing to DRAFT path`);
                 const v = await prisma_1.prisma.deedVersion.count({ where: { deedId: id } });
                 await prisma_1.prisma.deedVersion.create({
-                    data: { deedId: id, versionNumber: v + 1, gcsPath: gsPath }
+                    data: {
+                        deedId: id,
+                        versionNumber: v + 1,
+                        gcsPath: gsPath,
+                        fileSize: BigInt(filePart.buffer.length)
+                    }
                 });
                 actionLog = 'UPLOAD_DEED_DRAFT';
             }
-            else if (type === 'scan') {
-                // Prepare update data
-                const updateData = { scanPath: gsPath };
-                // If deedNumber provided and we're not yet final, add finalization fields
+            else if (normalizedType === 'scan') {
+                console.log(`[UPLOAD] Routing to SCAN path`);
+                const updateData = {
+                    scanPath: gsPath,
+                    scanSize: BigInt(filePart.buffer.length)
+                };
                 if (deedNumber && deedNumber.trim() !== "" && deed.status !== 'FINAL') {
+                    console.log(`[UPLOAD] Finalizing deed with number: ${deedNumber}`);
                     updateData.deedNumber = deedNumber;
                     updateData.status = 'FINAL';
                 }
@@ -375,7 +406,6 @@ const deedRoutes = async (fastify) => {
                     data: updateData
                 });
                 if (updateData.status === 'FINAL') {
-                    // Success Path: We formalized the deed
                     await prisma_1.prisma.protocolEntry.create({
                         data: {
                             tenantId,
@@ -385,7 +415,6 @@ const deedRoutes = async (fastify) => {
                         }
                     });
                     actionLog = 'FINALIZE_DEED';
-                    // Send Email Notification
                     const client = await prisma_1.prisma.client.findFirst({ where: { id: deed.clientId } });
                     if (client?.email) {
                         (0, email_1.sendDeedNotification)(client.email, 'DEED_FINALIZED', {
@@ -401,33 +430,46 @@ const deedRoutes = async (fastify) => {
                 }
             }
             else {
+                // Explicitly handle as attachment if type matches 'attachment' or is unknown
+                console.log(`[UPLOAD] Routing to ATTACHMENT fallback path. Received type: ${normalizedType}`);
                 let attachments = [];
                 if (deed.attachments) {
                     attachments = typeof deed.attachments === 'string' ? JSON.parse(deed.attachments) : deed.attachments;
                 }
                 if (!Array.isArray(attachments))
                     attachments = [];
-                attachments.push({ id: Math.random().toString(), name: filePart.filename, path: gsPath, uploadedAt: new Date().toISOString() });
+                attachments.push({
+                    id: Math.random().toString().substring(2, 10),
+                    name: filePart.filename,
+                    path: gsPath,
+                    size: filePart.buffer.length,
+                    uploadedAt: new Date().toISOString()
+                });
                 await prisma_1.prisma.deed.update({
                     where: { id },
                     data: { attachments: attachments }
                 });
                 actionLog = 'UPLOAD_DEED_ATTACHMENT';
             }
-            // Log Audit
             await fastify.logAudit({
                 tenantId,
                 userId: request.userId,
                 action: actionLog,
                 resource: 'Deed',
                 resourceId: id,
-                payload: { filename: filePart.filename, type, stakeholderId },
+                payload: {
+                    filename: filePart.filename,
+                    type: normalizedType,
+                    stakeholderId,
+                    title: deed.title,
+                    deedNumber: deedNumber || deed.deedNumber
+                },
             });
-            return reply.sendSuccess({ gcsPath: gsPath }, 'Dokumen berhasil diunggah');
+            return reply.sendSuccess({ gcsPath: gsPath, debugType: normalizedType, actionLog }, 'Dokumen berhasil diunggah');
         }
         catch (error) {
             request.log.error(error);
-            return reply.sendError('Gagal mengunggah dokumen');
+            return reply.sendError(`Gagal mengunggah dokumen: ${error.message || 'Terjadi kesalahan sistem'}`);
         }
     });
     // POST finalize
@@ -465,6 +507,15 @@ const deedRoutes = async (fastify) => {
                     deedNumber: deedNumber
                 }).catch(err => console.error('[EMAIL] Background error:', err));
             }
+            // Log Audit
+            await fastify.logAudit({
+                tenantId,
+                userId: request.userId,
+                action: 'FINALIZE_DEED',
+                resource: 'Deed',
+                resourceId: id,
+                payload: { title: deed.title, deedNumber }
+            });
             return reply.sendSuccess(deed, 'Akta berhasil difinalisasi dan nomor akta diterbitkan');
         }
         catch (error) {

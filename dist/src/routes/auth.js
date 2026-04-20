@@ -44,6 +44,10 @@ const authApiRoutes = async (fastify) => {
             console.log(`[Backend] Login gagal: Password salah`);
             return reply.code(401).send({ success: false, message: 'Email atau password salah' });
         }
+        if (user.isLocked) {
+            console.log(`[Backend] Login gagal: Akun terkunci (${email})`);
+            return reply.code(403).send({ success: false, message: 'Akun Anda telah dinonaktifkan sementara. Hubungi admin.' });
+        }
         console.log(`[Backend] Login sukses untuk: ${email}, Plan: ${user.tenant.subscription}`);
         // Generate stateless Backend JWT
         const token = jsonwebtoken_1.default.sign({ sub: user.id, tenantId: user.tenantId, role: user.role, plan: user.tenant.subscription }, JWT_SECRET, { expiresIn: '7d' });
@@ -169,7 +173,7 @@ const authApiRoutes = async (fastify) => {
             email: zod_1.z.string().email('Email tidak valid'),
             password: zod_1.z.string().min(8, 'Password minimal 8 karakter'),
             // Subscription
-            plan: zod_1.z.enum(['STARTER', 'PROFESSIONAL', 'ENTERPRISE']).optional(),
+            plan: zod_1.z.enum(['TRIAL', 'STARTER', 'PROFESSIONAL', 'ENTERPRISE']).optional(),
             // Invitation
             token: zod_1.z.string().optional(),
         });
@@ -224,12 +228,15 @@ const authApiRoutes = async (fastify) => {
         if (!kantorName)
             return reply.sendError('Nama kantor wajib disertakan untuk pendaftaran baru');
         const result = await prisma_1.prisma.$transaction(async (tx) => {
+            const trialExpiresAt = new Date();
+            trialExpiresAt.setDate(trialExpiresAt.getDate() + 30);
             const tenant = await tx.tenant.create({
                 data: {
                     name: kantorName,
                     address: address || null,
-                    subscription: plan || 'STARTER',
+                    subscription: plan || 'TRIAL',
                     status: 'ACTIVE',
+                    trialExpiresAt: trialExpiresAt,
                 }
             });
             const user = await tx.user.create({
@@ -270,6 +277,7 @@ const authApiRoutes = async (fastify) => {
         setImmediate(async () => {
             try {
                 const planLabel = {
+                    TRIAL: 'Free Trial',
                     STARTER: 'Starter (Gratis)',
                     PROFESSIONAL: 'Professional',
                     ENTERPRISE: 'Enterprise',

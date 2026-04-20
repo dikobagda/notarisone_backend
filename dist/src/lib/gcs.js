@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getSignedReadUrl = exports.generateUploadUrl = exports.uploadToGcs = void 0;
+exports.downloadFromGcs = exports.getSignedReadUrl = exports.generateUploadUrl = exports.uploadToGcs = void 0;
 const storage_1 = require("@google-cloud/storage");
 const path_1 = __importDefault(require("path"));
-const KEY_PATH = path_1.default.resolve(__dirname, '../../gcpkey.json');
+const KEY_PATH = path_1.default.resolve(__dirname, '../../google-service-account.json');
 // Early check to help user
 const fs_1 = __importDefault(require("fs"));
 if (!fs_1.default.existsSync(KEY_PATH)) {
@@ -70,4 +70,23 @@ const getSignedReadUrl = async (gsPath) => {
     }
 };
 exports.getSignedReadUrl = getSignedReadUrl;
+/**
+ * Downloads a file from GCS and returns its Buffer.
+ */
+const downloadFromGcs = async (gsPath) => {
+    if (!gsPath || !gsPath.startsWith('gs://'))
+        return null;
+    try {
+        const parts = gsPath.replace('gs://', '').split('/');
+        const bName = parts[0];
+        const fName = parts.slice(1).join('/');
+        const [buffer] = await storage.bucket(bName).file(fName).download();
+        return buffer;
+    }
+    catch (error) {
+        console.error(`[GCS ERROR] GCS Download Failed for ${gsPath}:`, error.message);
+        return null;
+    }
+};
+exports.downloadFromGcs = downloadFromGcs;
 //# sourceMappingURL=gcs.js.map

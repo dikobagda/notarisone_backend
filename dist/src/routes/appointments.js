@@ -14,9 +14,9 @@ const appointmentRoutes = async (fastify) => {
             if (from || to) {
                 where.startTime = {};
                 if (from)
-                    where.startTime.gte = new Date(from);
+                    where.startTime.gte = new Date(`${from}T00:00:00.000Z`);
                 if (to)
-                    where.startTime.lte = new Date(to);
+                    where.startTime.lte = new Date(`${to}T23:59:59.999Z`);
             }
             const appointments = await prisma_1.prisma.appointment.findMany({
                 where,
@@ -28,6 +28,31 @@ const appointmentRoutes = async (fastify) => {
                 orderBy: { startTime: 'asc' }
             });
             return reply.sendSuccess(appointments);
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.sendError('Gagal memuat jadwal');
+        }
+    });
+    // GET /api/appointments/:id - Get single appointment
+    fastify.get('/:id', async (request, reply) => {
+        const { id } = request.params;
+        const { tenantId } = request.query;
+        if (!tenantId)
+            return reply.sendError('Tenant ID wajib disertakan');
+        try {
+            const appointment = await prisma_1.prisma.appointment.findFirst({
+                where: { id, tenantId, deletedAt: null },
+                include: {
+                    client: true,
+                    deed: true,
+                    assignedTo: true
+                }
+            });
+            if (!appointment) {
+                return reply.code(404).sendError('Jadwal tidak ditemukan');
+            }
+            return reply.sendSuccess(appointment);
         }
         catch (error) {
             request.log.error(error);
@@ -129,6 +154,15 @@ const appointmentRoutes = async (fastify) => {
             if (currentUserId) {
                 google_calendar_1.GoogleCalendarService.syncAppointment(currentUserId, appointment.id).catch(err => request.log.error('Google Sync Error:', err));
             }
+            // Audit Log
+            await fastify.logAudit({
+                tenantId,
+                userId: currentUserId,
+                action: 'UPDATE_APPOINTMENT',
+                resource: 'Appointment',
+                resourceId: appointment.id,
+                payload: { id: appointment.id, title: appointment.title }
+            });
             return reply.sendSuccess(appointment, 'Jadwal berhasil diperbarui');
         }
         catch (error) {
@@ -152,6 +186,15 @@ const appointmentRoutes = async (fastify) => {
             if (currentUserId) {
                 google_calendar_1.GoogleCalendarService.syncAppointment(currentUserId, appointment.id).catch(err => request.log.error('Google Sync Error:', err));
             }
+            // Audit Log
+            await fastify.logAudit({
+                tenantId,
+                userId: currentUserId,
+                action: 'DELETE_APPOINTMENT',
+                resource: 'Appointment',
+                resourceId: appointment.id,
+                payload: { id: appointment.id, title: appointment.title }
+            });
             return reply.sendSuccess(null, 'Jadwal berhasil dihapus');
         }
         catch (error) {

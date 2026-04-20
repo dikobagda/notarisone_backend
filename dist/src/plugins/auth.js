@@ -8,13 +8,20 @@ const prisma_1 = require("@/lib/prisma");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
 const authPlugin = async (fastify) => {
+    // Initialize custom request properties
+    fastify.decorateRequest('tenantId', '');
+    fastify.decorateRequest('userId', '');
+    fastify.decorateRequest('role', '');
     fastify.addHook('preHandler', async (request, reply) => {
         // 1. Skip auth for public routes and auth routes
         if (request.url === '/health' ||
             request.url.startsWith('/public') ||
             request.url.startsWith('/api/auth') ||
             request.url.startsWith('/api/ocr') ||
-            request.url.startsWith('/api/backauth')) {
+            request.url.startsWith('/api/backauth') ||
+            request.url.startsWith('/api/subscription/plans') ||
+            request.url.startsWith('/api/subscription/webhook') ||
+            request.url.startsWith('/api/google/save-tokens')) {
             return;
         }
         const authHeader = request.headers.authorization;

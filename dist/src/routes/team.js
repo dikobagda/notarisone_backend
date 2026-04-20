@@ -17,6 +17,7 @@ const teamRoutes = async (fastify) => {
                     email: true,
                     phone: true,
                     role: true,
+                    isLocked: true,
                     createdAt: true,
                 },
                 orderBy: { createdAt: 'desc' }
@@ -66,29 +67,64 @@ const teamRoutes = async (fastify) => {
             return reply.sendError('Gagal menghapus anggota tim');
         }
     });
-    // PATCH /api/team/:userId/role - Change user role
-    fastify.patch('/:userId/role', async (request, reply) => {
+    // PUT /api/team/:userId - Update user details (phone, role)
+    fastify.put('/:userId', async (request, reply) => {
         const { userId } = request.params;
         const { tenantId } = request.query;
-        const schema = zod_1.z.object({ role: zod_1.z.enum(['NOTARIS', 'PEGAWAI', 'KLIEN']) });
+        const schema = zod_1.z.object({
+            phone: zod_1.z.string().optional().nullable(),
+            role: zod_1.z.enum(['NOTARIS', 'PEGAWAI', 'KLIEN']).optional(),
+        });
         const body = schema.safeParse(request.body);
         if (!body.success)
-            return reply.sendError('Role tidak valid');
+            return reply.sendError('Data tidak valid');
         try {
             const user = await prisma_1.prisma.user.findFirst({
                 where: { id: userId, tenantId }
             });
             if (!user)
                 return reply.sendError('Pengguna tidak ditemukan');
+            if (user.role === 'NOTARIS')
+                return reply.sendError('Data Office Owner / Notaris Utama tidak dapat dimodifikasi');
             await prisma_1.prisma.user.update({
                 where: { id: userId },
-                data: { role: body.data.role }
+                data: {
+                    phone: body.data.phone !== undefined ? body.data.phone : undefined,
+                    role: body.data.role !== undefined ? body.data.role : undefined,
+                }
             });
-            return reply.sendSuccess(null, 'Role berhasil diperbarui');
+            return reply.sendSuccess(null, 'Data anggota berhasil diperbarui');
         }
         catch (error) {
             request.log.error(error);
-            return reply.sendError('Gagal memperbarui role');
+            return reply.sendError('Gagal memperbarui data anggota');
+        }
+    });
+    // PATCH /api/team/:userId/lock - Toggle user lock status
+    fastify.patch('/:userId/lock', async (request, reply) => {
+        const { userId } = request.params;
+        const { tenantId } = request.query;
+        const schema = zod_1.z.object({ isLocked: zod_1.z.boolean() });
+        const body = schema.safeParse(request.body);
+        if (!body.success)
+            return reply.sendError('Status lock tidak valid');
+        try {
+            const user = await prisma_1.prisma.user.findFirst({
+                where: { id: userId, tenantId }
+            });
+            if (!user)
+                return reply.sendError('Pengguna tidak ditemukan');
+            if (user.role === 'NOTARIS')
+                return reply.sendError('Akun Office Owner / Notaris Utama tidak dapat dikunci');
+            await prisma_1.prisma.user.update({
+                where: { id: userId },
+                data: { isLocked: body.data.isLocked }
+            });
+            return reply.sendSuccess(null, body.data.isLocked ? 'Akses pengguna berhasil dikunci' : 'Akses pengguna berhasil dibuka');
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.sendError('Gagal mengubah status akses pengguna');
         }
     });
 };
