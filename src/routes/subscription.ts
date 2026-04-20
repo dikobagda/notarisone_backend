@@ -56,8 +56,8 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
           email: owner?.email || 'admin@notarisone.com',
         },
         // Callback URLs
-        successRedirectUrl: `http://localhost:3000/dashboard/subscription?status=success`,
-        failureRedirectUrl: `http://localhost:3000/dashboard/subscription?status=failed`,
+        successRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?status=success`,
+        failureRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?status=failed`,
         currency: 'IDR',
         items: [
           {
@@ -72,6 +72,8 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
           tier: body.data.tier,
         }
       };
+      
+      console.log(`[Checkout] Sending Invoice request to Xendit for Tenant ${tenantId}:`, JSON.stringify(invoiceData, null, 2));
 
       const xenditInvoice = await xenditClient.Invoice.createInvoice({
         data: invoiceData
