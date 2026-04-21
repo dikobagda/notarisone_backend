@@ -6,7 +6,16 @@ const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
 import fs from 'fs';
 let storageOptions: any = {};
 
-if (process.env.GCS_CREDENTIALS_JSON) {
+if (process.env.GCS_CREDENTIALS_BASE64) {
+  try {
+    const decoded = Buffer.from(process.env.GCS_CREDENTIALS_BASE64, 'base64').toString('utf-8');
+    const credentials = JSON.parse(decoded);
+    storageOptions = { credentials };
+    console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_BASE64 environment variable.`);
+  } catch (err: any) {
+    console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_BASE64! Details:`, err.message);
+  }
+} else if (process.env.GCS_CREDENTIALS_JSON) {
   try {
     let rawStr = process.env.GCS_CREDENTIALS_JSON.trim();
     // Jika sistem .env meng-include tanda petik, kita strip
@@ -14,6 +23,11 @@ if (process.env.GCS_CREDENTIALS_JSON) {
       rawStr = rawStr.slice(1, -1);
     }
     
+    // Attempting to fix backslash escapes hostinger randomly injects before curly braces
+    if (rawStr.startsWith('\\{')) {
+      rawStr = rawStr.replace(/\\{/g, '{').replace(/\\}/g, '}').replace(/\\"/g, '"');
+    }
+
     // Perbaiki literal newline jika ada masalah escape sequence backslash
     rawStr = rawStr.replace(/\\n/g, '\\n');
 
@@ -27,7 +41,7 @@ if (process.env.GCS_CREDENTIALS_JSON) {
 } else {
   // Early check to help user
   if (!fs.existsSync(KEY_PATH)) {
-    console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS_JSON is empty.`);
+    console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS env vars are empty.`);
   } else {
     storageOptions = { keyFilename: KEY_PATH };
   }
