@@ -7,14 +7,28 @@ exports.downloadFromGcs = exports.getSignedReadUrl = exports.generateUploadUrl =
 const storage_1 = require("@google-cloud/storage");
 const path_1 = __importDefault(require("path"));
 const KEY_PATH = path_1.default.join(process.cwd(), 'google-service-account.json');
-// Early check to help user
 const fs_1 = __importDefault(require("fs"));
-if (!fs_1.default.existsSync(KEY_PATH)) {
-    console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH}`);
+let storageOptions = {};
+if (process.env.GCS_CREDENTIALS_JSON) {
+    try {
+        const credentials = JSON.parse(process.env.GCS_CREDENTIALS_JSON);
+        storageOptions = { credentials };
+        console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
+    }
+    catch (err) {
+        console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_JSON from environment variables!`);
+    }
 }
-const storage = new storage_1.Storage({
-    keyFilename: KEY_PATH,
-});
+else {
+    // Early check to help user
+    if (!fs_1.default.existsSync(KEY_PATH)) {
+        console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS_JSON is empty.`);
+    }
+    else {
+        storageOptions = { keyFilename: KEY_PATH };
+    }
+}
+const storage = new storage_1.Storage(storageOptions);
 const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
 const uploadToGcs = async (buffer, fileName, contentType) => {
     const file = storage.bucket(bucketName).file(fileName);
@@ -74,8 +88,9 @@ exports.getSignedReadUrl = getSignedReadUrl;
  * Downloads a file from GCS and returns its Buffer.
  */
 const downloadFromGcs = async (gsPath) => {
-    if (!gsPath || !gsPath.startsWith('gs://'))
-        return null;
+    if (!gsPath || !gsPath.startsWith('gs://')) {
+        throw new Error(`Invalid gsPath format: ${gsPath}`);
+    }
     try {
         const parts = gsPath.replace('gs://', '').split('/');
         const bName = parts[0];
@@ -85,7 +100,7 @@ const downloadFromGcs = async (gsPath) => {
     }
     catch (error) {
         console.error(`[GCS ERROR] GCS Download Failed for ${gsPath}:`, error.message);
-        return null;
+        throw new Error(`GCS Download Failed: ${error.message}`);
     }
 };
 exports.downloadFromGcs = downloadFromGcs;

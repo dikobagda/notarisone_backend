@@ -35,7 +35,14 @@ const gdocsRoutes: FastifyPluginAsync = async (fastify) => {
 
       request.log.info(`[GDOCS OPEN] Attempting to download from GCS: ${version.gcsPath}`);
       // Download from GCS
-      const buffer = await downloadFromGcs(version.gcsPath);
+      let buffer: Buffer;
+      try {
+        buffer = await downloadFromGcs(version.gcsPath) as Buffer;
+      } catch (err: any) {
+        request.log.error(`[GDOCS OPEN] downloadFromGcs failed for path: ${version.gcsPath} | Error: ${err.message}`);
+        return reply.sendError(`Gagal mengunduh file draf dari GCS. Detail: ${err.message}`, 500);
+      }
+
       if (!buffer) {
          request.log.error(`[GDOCS OPEN] downloadFromGcs returned null for path: ${version.gcsPath}`);
          return reply.sendError(`Gagal mengunduh file draf dari server. Path: ${version.gcsPath}`, 500);

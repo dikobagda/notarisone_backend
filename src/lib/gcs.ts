@@ -3,15 +3,27 @@ import path from 'path';
 
 const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
 
-// Early check to help user
 import fs from 'fs';
-if (!fs.existsSync(KEY_PATH)) {
-  console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH}`);
+let storageOptions: any = {};
+
+if (process.env.GCS_CREDENTIALS_JSON) {
+  try {
+    const credentials = JSON.parse(process.env.GCS_CREDENTIALS_JSON);
+    storageOptions = { credentials };
+    console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
+  } catch (err) {
+    console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_JSON from environment variables!`);
+  }
+} else {
+  // Early check to help user
+  if (!fs.existsSync(KEY_PATH)) {
+    console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS_JSON is empty.`);
+  } else {
+    storageOptions = { keyFilename: KEY_PATH };
+  }
 }
 
-const storage = new Storage({
-  keyFilename: KEY_PATH,
-});
+const storage = new Storage(storageOptions);
 const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
 
 export const uploadToGcs = async (buffer: Buffer, fileName: string, contentType: string): Promise<string> => {
@@ -76,7 +88,9 @@ export const getSignedReadUrl = async (gsPath: string): Promise<string | null> =
  * Downloads a file from GCS and returns its Buffer.
  */
 export const downloadFromGcs = async (gsPath: string): Promise<Buffer | null> => {
-  if (!gsPath || !gsPath.startsWith('gs://')) return null;
+  if (!gsPath || !gsPath.startsWith('gs://')) {
+    throw new Error(`Invalid gsPath format: ${gsPath}`);
+  }
 
   try {
     const parts = gsPath.replace('gs://', '').split('/');
@@ -87,6 +101,6 @@ export const downloadFromGcs = async (gsPath: string): Promise<Buffer | null> =>
     return buffer;
   } catch (error: any) {
     console.error(`[GCS ERROR] GCS Download Failed for ${gsPath}:`, error.message);
-    return null;
+    throw new Error(`GCS Download Failed: ${error.message}`);
   }
 };
