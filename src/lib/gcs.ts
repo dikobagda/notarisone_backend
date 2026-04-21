@@ -8,11 +8,21 @@ let storageOptions: any = {};
 
 if (process.env.GCS_CREDENTIALS_JSON) {
   try {
-    const credentials = JSON.parse(process.env.GCS_CREDENTIALS_JSON);
+    let rawStr = process.env.GCS_CREDENTIALS_JSON.trim();
+    // Jika sistem .env meng-include tanda petik, kita strip
+    if ((rawStr.startsWith("'") && rawStr.endsWith("'")) || (rawStr.startsWith('"') && rawStr.endsWith('"'))) {
+      rawStr = rawStr.slice(1, -1);
+    }
+    
+    // Perbaiki literal newline jika ada masalah escape sequence backslash
+    rawStr = rawStr.replace(/\\n/g, '\\n');
+
+    const credentials = JSON.parse(rawStr);
     storageOptions = { credentials };
     console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
-  } catch (err) {
+  } catch (err: any) {
     console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_JSON from environment variables!`);
+    console.error(`[CRITICAL] JSON Parse Error Details:`, err.message);
   }
 } else {
   // Early check to help user
