@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { generateUploadUrl, uploadToGcs } from '@/lib/gcs';
 import { z } from 'zod';
 import { sendDeedNotification } from '@/lib/email';
+import { NotificationService } from '../services/notification-service';
 import { GoogleCalendarService } from '@/lib/google-calendar';
 import { addHours, addDays, setHours, setMinutes, startOfHour } from 'date-fns';
 
@@ -223,6 +224,16 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
             }
           })
         }
+      });
+      
+      // Notify tenant about new deed
+      await NotificationService.notifyTenant({
+        tenantId,
+        title: 'Akta Baru Dibuat',
+        description: `Draf akta "${val.data.title}" telah berhasil dibuat.`,
+        type: 'SUCCESS',
+        actionUrl: `/dashboard/deeds/${deed.id}`,
+        excludeUserId: val.data.createdById
       });
 
       // Handle Main Draft Upload

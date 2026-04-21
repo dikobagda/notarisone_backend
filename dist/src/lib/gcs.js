@@ -13,7 +13,10 @@ if (process.env.GCS_CREDENTIALS_BASE64) {
     try {
         const decoded = Buffer.from(process.env.GCS_CREDENTIALS_BASE64, 'base64').toString('utf-8');
         const credentials = JSON.parse(decoded);
-        storageOptions = { credentials };
+        storageOptions = {
+            projectId: credentials.project_id,
+            credentials
+        };
         console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_BASE64 environment variable.`);
     }
     catch (err) {
@@ -34,7 +37,10 @@ else if (process.env.GCS_CREDENTIALS_JSON) {
         // Perbaiki literal newline jika ada masalah escape sequence backslash
         rawStr = rawStr.replace(/\\n/g, '\\n');
         const credentials = JSON.parse(rawStr);
-        storageOptions = { credentials };
+        storageOptions = {
+            projectId: credentials.project_id,
+            credentials
+        };
         console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
     }
     catch (err) {

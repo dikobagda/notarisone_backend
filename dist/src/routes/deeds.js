@@ -4,6 +4,7 @@ const prisma_1 = require("../lib/prisma");
 const gcs_1 = require("../lib/gcs");
 const zod_1 = require("zod");
 const email_1 = require("../lib/email");
+const notification_service_1 = require("../services/notification-service");
 const google_calendar_1 = require("../lib/google-calendar");
 const date_fns_1 = require("date-fns");
 const stakeholderSchema = zod_1.z.object({
@@ -202,6 +203,15 @@ const deedRoutes = async (fastify) => {
                         }
                     })
                 }
+            });
+            // Notify tenant about new deed
+            await notification_service_1.NotificationService.notifyTenant({
+                tenantId,
+                title: 'Akta Baru Dibuat',
+                description: `Draf akta "${val.data.title}" telah berhasil dibuat.`,
+                type: 'SUCCESS',
+                actionUrl: `/dashboard/deeds/${deed.id}`,
+                excludeUserId: val.data.createdById
             });
             // Handle Main Draft Upload
             if (draftFile) {

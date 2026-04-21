@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { Xendit } from 'xendit-node';
+import { NotificationService } from '../services/notification-service';
 import fs from 'fs';
 import path from 'path';
 
@@ -104,6 +105,16 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       } catch (logErr) {
         console.error(`[Checkout] Failed to log to database:`, logErr);
       }
+
+      // Notify user about checkout initiation
+      await NotificationService.notifyUser({
+        tenantId: tenant.id,
+        userId: (request as any).userId,
+        title: 'Checkout Dimulai',
+        description: `Proses pembayaran untuk paket ${body.data.tier} telah dimulai. Silakan selesaikan pembayaran Anda.`,
+        type: 'INFO',
+        actionUrl: invoiceUrl
+      });
 
       return reply.sendSuccess({
         invoiceUrl,
@@ -262,6 +273,15 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
           lastPaymentId: payload.id, // Store the Xendit Invoice ID as reference
           status: 'ACTIVE'
         }
+      });
+
+      // Notify tenant about successful subscription
+      await NotificationService.notifyTenant({
+        tenantId: tenantId,
+        title: 'Langganan Aktif',
+        description: `Selamat! Paket ${tier} Anda telah aktif hingga ${expiryDate.toLocaleDateString('id-ID')}.`,
+        type: 'SUCCESS',
+        actionUrl: '/dashboard/subscription'
       });
 
       console.log(`[Webhook] SUCCESS: Subscription ${isUpgrade ? 'UPGRADED' : 'UPDATED'} for Tenant ${tenantId}`);

@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const google_calendar_1 = require("../lib/google-calendar");
+const notification_service_1 = require("../services/notification-service");
 const appointmentRoutes = async (fastify) => {
     // GET /api/appointments - List appointments
     fastify.get('/', async (request, reply) => {
@@ -101,6 +102,19 @@ const appointmentRoutes = async (fastify) => {
                 resource: 'Appointment',
                 resourceId: appointment.id,
                 payload: body.data
+            });
+            // Notify tenant about new appointment
+            const startTimeStr = new Date(body.data.startTime).toLocaleString('id-ID', {
+                dateStyle: 'medium',
+                timeStyle: 'short'
+            });
+            await notification_service_1.NotificationService.notifyTenant({
+                tenantId,
+                title: 'Janji Temu Baru',
+                description: `Janji temu "${body.data.title}" telah dijadwalkan pada ${startTimeStr}.`,
+                type: 'INFO',
+                actionUrl: `/dashboard/appointments`,
+                excludeUserId: currentUserId
             });
             // Background Sync to Google Calendar
             if (currentUserId) {

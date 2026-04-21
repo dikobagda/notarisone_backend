@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { GoogleCalendarService } from '@/lib/google-calendar';
+import { NotificationService } from '../services/notification-service';
 
 const appointmentRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/appointments - List appointments
@@ -106,6 +107,21 @@ const appointmentRoutes: FastifyPluginAsync = async (fastify) => {
         resource: 'Appointment',
         resourceId: appointment.id,
         payload: body.data
+      });
+      
+      // Notify tenant about new appointment
+      const startTimeStr = new Date(body.data.startTime).toLocaleString('id-ID', { 
+        dateStyle: 'medium', 
+        timeStyle: 'short' 
+      });
+      
+      await NotificationService.notifyTenant({
+        tenantId,
+        title: 'Janji Temu Baru',
+        description: `Janji temu "${body.data.title}" telah dijadwalkan pada ${startTimeStr}.`,
+        type: 'INFO',
+        actionUrl: `/dashboard/appointments`,
+        excludeUserId: currentUserId
       });
 
       // Background Sync to Google Calendar
