@@ -46,10 +46,10 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       const owner = tenant.users[0];
 
       // Create Xendit Invoice
-      const externalId = `inv-${tenantId}-${Date.now()}`;
+      const requestExternalId = `inv-${tenantId}-${Date.now()}`;
 
       const invoiceData = {
-        externalId,
+        externalId: requestExternalId,
         amount,
         description: `Berlangganan NotarisOne Paket ${body.data.tier}`,
         payerEmail: owner?.email || 'admin@notarisone.com',
@@ -81,16 +81,24 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         data: invoiceData
       });
 
+      // Safely extract only primitive fields to prevent serialization failures
+      const invoiceUrl = String(xenditInvoice.invoiceUrl || '');
+      const externalId = String(xenditInvoice.externalId || '');
+      console.log(`[Checkout] Invoice created: ${externalId}, URL: ${invoiceUrl}`);
+
       // DATABASE LOGGING FOR CHECKOUT REQUEST
       try {
+        // Safe serialization: convert to plain object first
+        const safePayload = JSON.parse(JSON.stringify(invoiceData));
+        const safeResponse = { id: String((xenditInvoice as any).id || ''), externalId, invoiceUrl, status: String((xenditInvoice as any).status || '') };
         await prisma.xenditLog.create({
           data: {
             tenantId: tenant.id,
-            externalId: xenditInvoice.externalId,
+            externalId,
             type: 'CHECKOUT_REQUEST',
             status: 'PENDING',
-            payload: JSON.parse(JSON.stringify(invoiceData)),
-            response: JSON.parse(JSON.stringify(xenditInvoice))
+            payload: safePayload,
+            response: safeResponse
           }
         });
       } catch (logErr) {
@@ -98,8 +106,8 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       return reply.sendSuccess({
-        invoiceUrl: xenditInvoice.invoiceUrl,
-        externalId: xenditInvoice.externalId
+        invoiceUrl,
+        externalId
       }, 'Invoice berhasil dibuat');
 
     } catch (error: any) {
