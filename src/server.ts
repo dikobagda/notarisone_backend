@@ -26,6 +26,7 @@ import googleRoutes from './routes/google';
 import subscriptionRoutes from './routes/subscription';
 import gdocsRoutes from './routes/gdocs';
 import notificationRoutes from './routes/notifications';
+import waarmerkingRoutes from './routes/waarmerking';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
 import { prisma } from './lib/prisma';
@@ -92,6 +93,7 @@ server.register(googleRoutes, { prefix: '/api/google' });
 server.register(subscriptionRoutes, { prefix: '/api/subscription' });
 server.register(gdocsRoutes, { prefix: '/api/gdocs' });
 server.register(notificationRoutes, { prefix: '/api/notifications' });
+server.register(waarmerkingRoutes, { prefix: '/api/waarmerking' });
 
 // Health Check
 server.get('/', async (request, reply) => {

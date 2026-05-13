@@ -1,59 +1,15 @@
 import { Storage } from '@google-cloud/storage';
 import path from 'path';
 
-const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
+import { getGoogleCredentials } from './google-auth';
 
-import fs from 'fs';
-let storageOptions: any = {};
+const authOptions = getGoogleCredentials();
+const storage = new Storage(authOptions || {});
 
-if (process.env.GCS_CREDENTIALS_BASE64) {
-  try {
-    const decoded = Buffer.from(process.env.GCS_CREDENTIALS_BASE64, 'base64').toString('utf-8');
-    const credentials = JSON.parse(decoded);
-    storageOptions = { 
-      projectId: credentials.project_id,
-      credentials 
-    };
-    console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_BASE64 environment variable.`);
-  } catch (err: any) {
-    console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_BASE64! Details:`, err.message);
-  }
-} else if (process.env.GCS_CREDENTIALS_JSON) {
-  try {
-    let rawStr = process.env.GCS_CREDENTIALS_JSON.trim();
-    // Jika sistem .env meng-include tanda petik, kita strip
-    if ((rawStr.startsWith("'") && rawStr.endsWith("'")) || (rawStr.startsWith('"') && rawStr.endsWith('"'))) {
-      rawStr = rawStr.slice(1, -1);
-    }
-    
-    // Attempting to fix backslash escapes hostinger randomly injects before curly braces
-    if (rawStr.startsWith('\\{')) {
-      rawStr = rawStr.replace(/\\{/g, '{').replace(/\\}/g, '}').replace(/\\"/g, '"');
-    }
-
-    // Perbaiki literal newline jika ada masalah escape sequence backslash
-    rawStr = rawStr.replace(/\\n/g, '\\n');
-
-    const credentials = JSON.parse(rawStr);
-    storageOptions = { 
-      projectId: credentials.project_id,
-      credentials 
-    };
-    console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
-  } catch (err: any) {
-    console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_JSON from environment variables!`);
-    console.error(`[CRITICAL] JSON Parse Error Details:`, err.message);
-  }
-} else {
-  // Early check to help user
-  if (!fs.existsSync(KEY_PATH)) {
-    console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS env vars are empty.`);
-  } else {
-    storageOptions = { keyFilename: KEY_PATH };
-  }
+if (!authOptions) {
+  console.error('[GCS] Warning: No Google Cloud credentials found. Storage operations will fail.');
 }
 
-const storage = new Storage(storageOptions);
 const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
 
 export const uploadToGcs = async (buffer: Buffer, fileName: string, contentType: string): Promise<string> => {

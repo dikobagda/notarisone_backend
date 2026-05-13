@@ -29,6 +29,7 @@ model Tenant {
   users           User[]
   notifications   Notification[]
   xenditLogs      XenditLog[]
+  waarmarkings    Waarmerking[]
 }
 
 model TenantTeams {
@@ -78,6 +79,9 @@ model Client {
   id                 String            @id @default(cuid())
   tenantId           String
   name               String
+  title              String?
+  gender             String?
+  maritalStatus      String?
   nik                String            @unique
   npwp               String?
   pob                String?
@@ -95,6 +99,7 @@ model Client {
   stakeholderInDeeds DeedStakeholder[]
   appointments       Appointment[]
   invoices           Invoice[]
+  waarmarkings       Waarmerking[]
 
   @@index([tenantId], map: "Client_tenantId_fkey")
 }
@@ -457,4 +462,32 @@ model XenditLog {
   
   @@index([tenantId])
   @@index([externalId])
+}
+
+model Waarmerking {
+  id              String            @id @default(cuid())
+  tenantId        String
+  nomorDaftar     String?           @unique
+  clientId        String?
+  pemohon         String
+  perihal         String
+  keterangan      String?           @db.Text
+  tanggalDaftar   DateTime          @default(now())
+  jumlahHalaman   Int               @default(1)
+  biaya           Decimal?          @db.Decimal(15, 2)
+  status          WaarmerkingStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  deletedAt       DateTime?
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  client          Client?           @relation(fields: [clientId], references: [id])
+
+  @@index([tenantId])
+  @@index([clientId])
+}
+
+enum WaarmerkingStatus {
+  PENDING
+  SELESAI
+  DIBATALKAN
 }

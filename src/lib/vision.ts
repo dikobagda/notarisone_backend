@@ -2,18 +2,23 @@ import { ImageAnnotatorClient } from '@google-cloud/vision';
 import path from 'path';
 import { uploadToGcs } from './gcs';
 
-// Path to service account key
-const KEY_PATH = path.join(process.cwd(), 'google-service-account.json');
+import { getGoogleCredentials } from './google-auth';
 
-const visionClient = new ImageAnnotatorClient({
-  keyFilename: KEY_PATH,
-});
+const authOptions = getGoogleCredentials();
+const visionClient = new ImageAnnotatorClient(authOptions || {});
+
+if (!authOptions) {
+  console.error('[Vision] Warning: No Google Cloud credentials found. OCR will fail.');
+}
+
 
 export interface KtpExtraction {
   nik: string;
   name: string;
   pob: string;
   dob: string;
+  gender: string;
+  maritalStatus: string;
   address: string;
   rawVisionText?: string;
   ktpPath?: string;
@@ -98,6 +103,7 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
       }
       // Gender
       else if (!gender && v.match(/LAKI|PEREMPUAN/)) {
+          gender = v.includes('PEREMPUAN') ? 'PEREMPUAN' : 'LAKI_LAKI';
           matched = true;
       }
       // Religion
@@ -106,6 +112,11 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
       }
       // Marriage
       else if (!status && v.match(/KAWIN|CERAI/)) {
+          if (v.includes('BELUM')) status = 'BELUM_KAWIN';
+          else if (v.includes('MATI')) status = 'CERAI_MATI';
+          else if (v.includes('HIDUP')) status = 'CERAI_HIDUP';
+          else if (v.match(/^KAWIN/)) status = 'KAWIN';
+          else status = 'KAWIN'; // Default fallback if just "KAWIN"
           matched = true;
       }
       // Job
@@ -172,6 +183,8 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
     name: name.replace(/[:\-|!.;]/g, '').trim().toUpperCase(), 
     pob: pob.replace(/[:\-|!.;]/g, '').trim().toUpperCase(), 
     dob: dob,
+    gender: gender,
+    maritalStatus: status,
     address: address.trim().toUpperCase(),
     rawVisionText: fullTextResult,
     ktpPath: ktpPath

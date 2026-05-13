@@ -5,6 +5,9 @@ import { z } from 'zod';
 
 const clientSchema = z.object({
   name: z.string().min(1, 'Nama klien wajib diisi'),
+  title: z.string().optional().or(z.literal('')),
+  gender: z.string().optional().or(z.literal('')),
+  maritalStatus: z.string().optional().or(z.literal('')),
   nik: z.string().min(16, 'NIK minimal 16 karakter').max(16),
   npwp: z.string().optional().or(z.literal('')),
   pob: z.string().optional().or(z.literal('')),
@@ -108,6 +111,9 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
         data: {
           ...result.data,
           tenantId,
+          title: result.data.title || null,
+          gender: result.data.gender || null,
+          maritalStatus: result.data.maritalStatus || null,
           npwp: result.data.npwp || null,
           pob: result.data.pob || null,
           dob: result.data.dob || null,
@@ -163,6 +169,9 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
         where: { id },
         data: {
           ...result.data,
+          title: result.data.title !== undefined ? (result.data.title || null) : undefined,
+          gender: result.data.gender !== undefined ? (result.data.gender || null) : undefined,
+          maritalStatus: result.data.maritalStatus !== undefined ? (result.data.maritalStatus || null) : undefined,
           npwp: result.data.npwp !== undefined ? (result.data.npwp || null) : undefined,
           pob: result.data.pob !== undefined ? (result.data.pob || null) : undefined,
           dob: result.data.dob !== undefined ? (result.data.dob || null) : undefined,
