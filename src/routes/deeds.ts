@@ -644,6 +644,43 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.sendError('Gagal menambahkan pihak terkait');
     }
   });
+
+  // DELETE a deed (Soft delete)
+  fastify.delete('/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { tenantId } = request.query as { tenantId: string };
+
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
+
+    try {
+      const deed = await prisma.deed.findFirst({
+        where: { id, tenantId, deletedAt: null }
+      });
+
+      if (!deed) {
+        return reply.sendError('Akta tidak ditemukan atau sudah dihapus', 404);
+      }
+
+      await prisma.deed.delete({
+        where: { id }
+      });
+
+      // Log Audit
+      await fastify.logAudit({
+        tenantId,
+        userId: request.userId,
+        action: 'DELETE_DEED',
+        resource: 'Deed',
+        resourceId: id,
+        payload: { title: deed.title, type: deed.type },
+      });
+
+      return reply.sendSuccess(null, 'Akta berhasil dihapus');
+    } catch (error) {
+      console.error('Delete deed error:', error);
+      return reply.sendError('Gagal menghapus akta');
+    }
+  });
 };
 
 export default deedRoutes;
