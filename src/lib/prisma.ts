@@ -4,7 +4,11 @@ import { softDeleteExtension } from './soft-delete';
 
 const globalForPrisma = global as unknown as { prisma: any };
 
-const adapter = new PrismaMariaDb(process.env.DATABASE_URL || '');
+const rawUrl = process.env.DATABASE_URL || '';
+// Ensure we use mariadb:// for the adapter, and trim any potential whitespace
+const connectionString = rawUrl.trim().replace(/^mysql:\/\//, 'mariadb://');
+
+const adapter = new PrismaMariaDb(connectionString);
 
 const basePrisma =
   globalForPrisma.prisma ||

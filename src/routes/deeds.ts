@@ -26,7 +26,8 @@ const deedSchema = z.object({
     lokasiAlamat: z.string().optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-  }).optional()
+  }).optional(),
+  serviceRequestId: z.string().optional().or(z.literal('')),
 });
 
 const deedRoutes: FastifyPluginAsync = async (fastify) => {
@@ -173,6 +174,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
         createdBy: true, 
         stakeholders: true,
         ppatData: true,
+        serviceRequest: true,
         versions: { orderBy: { versionNumber: 'desc' } }
       },
     });
@@ -218,6 +220,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
           tenantId,
           status: 'DRAFT',
           targetFinalization: val.data.targetFinalization ? new Date(val.data.targetFinalization) : null,
+          serviceRequestId: val.data.serviceRequestId || null,
           ...(val.data.ppatData && {
             ppatData: {
               create: val.data.ppatData
@@ -225,6 +228,19 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
           })
         }
       });
+
+      // Update ServiceRequest status to IN_PROGRESS if linked
+      if (val.data.serviceRequestId) {
+        try {
+          await prisma.serviceRequest.update({
+            where: { id: val.data.serviceRequestId },
+            data: { status: 'IN_PROGRESS' }
+          });
+        } catch (srError) {
+          console.error("[DEBUG] Failed to update ServiceRequest status:", srError);
+          // Don't fail the whole request if status update fails
+        }
+      }
       
       // Notify tenant about new deed
       await NotificationService.notifyTenant({

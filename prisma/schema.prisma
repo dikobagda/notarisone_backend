@@ -30,6 +30,10 @@ model Tenant {
   notifications   Notification[]
   xenditLogs      XenditLog[]
   waarmarkings    Waarmerking[]
+  serviceRequests ServiceRequest[]
+  additionalJobs  AdditionalJobMaster[]
+  bankAccounts    BankAccount[]
+  libraryItems    LibraryItem[]
 }
 
 model TenantTeams {
@@ -82,7 +86,7 @@ model Client {
   title              String?
   gender             String?
   maritalStatus      String?
-  nik                String            @unique
+  nik                String
   npwp               String?
   pob                String?
   dob                String?
@@ -100,7 +104,9 @@ model Client {
   appointments       Appointment[]
   invoices           Invoice[]
   waarmarkings       Waarmerking[]
+  serviceRequests    ServiceRequest[]
 
+  @@unique([tenantId, nik])
   @@index([tenantId], map: "Client_tenantId_fkey")
 }
 
@@ -117,11 +123,13 @@ model Deed {
   attachments        Json?
   createdById        String
   clientId           String
+  serviceRequestId   String?
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?
   client             Client            @relation(fields: [clientId], references: [id])
   createdBy          User              @relation("CreatedBy", fields: [createdById], references: [id])
+  serviceRequest     ServiceRequest?   @relation(fields: [serviceRequestId], references: [id])
   tenant             Tenant            @relation(fields: [tenantId], references: [id])
   stakeholders       DeedStakeholder[]
   versions           DeedVersion[]
@@ -490,4 +498,86 @@ enum WaarmerkingStatus {
   PENDING
   SELESAI
   DIBATALKAN
+}
+
+model ServiceRequest {
+  id              String               @id @default(cuid())
+  tenantId        String
+  clientId        String?
+  clientName      String?
+  clientPhone     String?
+  description     String?              @db.Text
+  serviceCategory ServiceCategory
+  documents       Json
+  additionalJobs  String?              @db.Text
+  estimatedCost   Decimal?             @db.Decimal(15, 2)
+  status          ServiceRequestStatus @default(PENDING)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  client          Client?              @relation(fields: [clientId], references: [id])
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  deeds           Deed[]
+
+  @@index([clientId])
+  @@index([tenantId])
+}
+
+enum ServiceCategory {
+  AKTA
+  PPAT
+  NON_AKTA
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model AdditionalJobMaster {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  price     Decimal  @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId])
+}
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  tenantId      String
+  bankName      String
+  accountNumber String
+  accountHolder String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+model LibraryItem {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  title       String
+  description String?  @db.Text
+  category    String
+  fileType    String
+  fileUrl     String?
+  downloads   Int      @default(0)
+  isPremium   Boolean  @default(false)
+  status      String   @default("APPROVED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }

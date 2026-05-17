@@ -8,7 +8,11 @@ export function getGoogleCredentials() {
   if (process.env.GCS_CREDENTIALS_BASE64) {
     try {
       const decoded = Buffer.from(process.env.GCS_CREDENTIALS_BASE64, 'base64').toString('utf-8');
-      return { credentials: JSON.parse(decoded) };
+      const parsed = JSON.parse(decoded);
+      return { 
+        projectId: parsed.project_id,
+        credentials: parsed 
+      };
     } catch (err) {
       console.error(`[GoogleAuth] Failed to parse GCS_CREDENTIALS_BASE64`);
     }
@@ -27,7 +31,11 @@ export function getGoogleCredentials() {
     if (rawStr.startsWith('eyJ')) {
       try {
         const decoded = Buffer.from(rawStr, 'base64').toString('utf-8');
-        return { credentials: JSON.parse(decoded) };
+        const parsed = JSON.parse(decoded);
+        return { 
+          projectId: parsed.project_id,
+          credentials: parsed 
+        };
       } catch (err) {
         console.error(`[GoogleAuth] Failed to parse GCS_CREDENTIALS_JSON as Base64`);
       }
@@ -39,9 +47,11 @@ export function getGoogleCredentials() {
       if (rawStr.startsWith('\\{')) {
         rawStr = rawStr.replace(/\\{/g, '{').replace(/\\}/g, '}').replace(/\\"/g, '"');
       }
-      rawStr = rawStr.replace(/\\n/g, '\n');
-      
-      return { credentials: JSON.parse(rawStr) };
+      const parsed = JSON.parse(rawStr);
+      return { 
+        projectId: parsed.project_id,
+        credentials: parsed 
+      };
     } catch (err) {
       console.error(`[GoogleAuth] Failed to parse GCS_CREDENTIALS_JSON as raw JSON`);
     }

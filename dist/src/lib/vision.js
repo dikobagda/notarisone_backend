@@ -1,18 +1,15 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.extractKtpData = extractKtpData;
 exports.extractNpwpData = extractNpwpData;
 const vision_1 = require("@google-cloud/vision");
-const path_1 = __importDefault(require("path"));
 const gcs_1 = require("./gcs");
-// Path to service account key
-const KEY_PATH = path_1.default.join(process.cwd(), 'google-service-account.json');
-const visionClient = new vision_1.ImageAnnotatorClient({
-    keyFilename: KEY_PATH,
-});
+const google_auth_1 = require("./google-auth");
+const authOptions = (0, google_auth_1.getGoogleCredentials)();
+const visionClient = new vision_1.ImageAnnotatorClient(authOptions || {});
+if (!authOptions) {
+    console.error('[Vision] Warning: No Google Cloud credentials found. OCR will fail.');
+}
 /**
  * Enhanced KTP extraction using Google Cloud Vision (Value Pool Elimination Algorithm)
  */
@@ -78,6 +75,7 @@ async function extractKtpData(imageBuffer) {
         }
         // Gender
         else if (!gender && v.match(/LAKI|PEREMPUAN/)) {
+            gender = v.includes('PEREMPUAN') ? 'PEREMPUAN' : 'LAKI_LAKI';
             matched = true;
         }
         // Religion
@@ -86,6 +84,16 @@ async function extractKtpData(imageBuffer) {
         }
         // Marriage
         else if (!status && v.match(/KAWIN|CERAI/)) {
+            if (v.includes('BELUM'))
+                status = 'BELUM_KAWIN';
+            else if (v.includes('MATI'))
+                status = 'CERAI_MATI';
+            else if (v.includes('HIDUP'))
+                status = 'CERAI_HIDUP';
+            else if (v.match(/^KAWIN/))
+                status = 'KAWIN';
+            else
+                status = 'KAWIN'; // Default fallback if just "KAWIN"
             matched = true;
         }
         // Job
@@ -152,6 +160,8 @@ async function extractKtpData(imageBuffer) {
         name: name.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
         pob: pob.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
         dob: dob,
+        gender: gender,
+        maritalStatus: status,
         address: address.trim().toUpperCase(),
         rawVisionText: fullTextResult,
         ktpPath: ktpPath

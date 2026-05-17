@@ -1,0 +1,7 @@
+prisma:query SELECT `DeedStakeholder`.`id`, `DeedStakeholder`.`deedId`, `DeedStakeholder`.`clientId`, `DeedStakeholder`.`name`, `DeedStakeholder`.`role`, `DeedStakeholder`.`ktpPath`, `DeedStakeholder`.`ktpSize`, `DeedStakeholder`.`npwpPath`, `DeedStakeholder`.`npwpSize`, `DeedStakeholder`.`createdAt`, `DeedStakeholder`.`updatedAt` FROM `DeedStakeholder` WHERE 1=1
+prisma:query SELECT `Deed`.`id`, `Deed`.`tenantId`, `Deed`.`title`, `Deed`.`type`, `Deed`.`deedNumber`, `Deed`.`status`, `Deed`.`targetFinalization`, `Deed`.`scanPath`, `Deed`.`scanSize`, `Deed`.`attachments`, `Deed`.`createdById`, `Deed`.`clientId`, `Deed`.`createdAt`, `Deed`.`updatedAt`, `Deed`.`deletedAt` FROM `Deed` WHERE `Deed`.`id` IN (?,?,?,?,?,?,?,?,?)
+prisma:query SELECT `Client`.`id`, `Client`.`tenantId`, `Client`.`name`, `Client`.`title`, `Client`.`gender`, `Client`.`maritalStatus`, `Client`.`nik`, `Client`.`npwp`, `Client`.`pob`, `Client`.`dob`, `Client`.`address`, `Client`.`phone`, `Client`.`email`, `Client`.`ktpPath`, `Client`.`npwpPath`, `Client`.`createdAt`, `Client`.`updatedAt`, `Client`.`deletedAt` FROM `Client` WHERE `Client`.`id` IN (?,?,?,?)
+TypeError: Do not know how to serialize a BigInt
+    at JSON.stringify (<anonymous>)
+    at main (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/scratch/check_stakeholders.ts:15:54)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)

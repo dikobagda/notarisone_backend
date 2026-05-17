@@ -16,7 +16,7 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     if (adminToken !== 'super-secret-admin-token') {
       return reply.code(403).send({
         success: false,
-        message: 'Akses ditolak. Anda bukan Administrator NotarisOne.',
+        message: 'Akses ditolak. Anda bukan Administrator penagraha.',
       });
     }
   });

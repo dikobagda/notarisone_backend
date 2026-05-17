@@ -169,6 +169,110 @@ export const profileRoutes: FastifyPluginAsync = async (fastify) => {
 
     return reply.sendSuccess(updated, 'Info kantor berhasil diperbarui');
   });
+
+  // GET /api/profile/bank-accounts - Fetch bank accounts
+  fastify.get('/bank-accounts', async (request, reply) => {
+    const tenantId = request.tenantId;
+    console.log("[DEBUG] Fetching banks for tenant:", tenantId);
+    if (!tenantId) return reply.sendError('Unauthorized', 401);
+
+    const bankAccounts = await prisma.bankAccount.findMany({
+      where: { tenantId }
+    });
+    console.log("[DEBUG] Found banks:", bankAccounts.length);
+
+    return reply.sendSuccess(bankAccounts);
+  });
+
+  // POST /api/profile/bank-accounts - Add bank account
+  fastify.post('/bank-accounts', async (request, reply) => {
+    const tenantId = request.tenantId;
+    if (!tenantId) return reply.sendError('Unauthorized', 401);
+
+    const schema = z.object({
+      bankName: z.string().min(1, 'Nama bank wajib diisi'),
+      accountNumber: z.string().min(1, 'Nomor rekening wajib diisi'),
+      accountHolder: z.string().min(1, 'Nama pemilik rekening wajib diisi'),
+      isDefault: z.boolean().optional().default(false)
+    });
+
+    const body = schema.safeParse(request.body);
+    if (!body.success) {
+      return reply.sendError(body.error.issues[0].message);
+    }
+
+    // If setting as default, unset others
+    if (body.data.isDefault) {
+      await prisma.bankAccount.updateMany({
+        where: { tenantId },
+        data: { isDefault: false }
+      });
+    }
+
+    const created = await prisma.bankAccount.create({
+      data: {
+        tenantId,
+        bankName: body.data.bankName,
+        accountNumber: body.data.accountNumber,
+        accountHolder: body.data.accountHolder,
+        isDefault: body.data.isDefault
+      }
+    });
+
+    return reply.sendSuccess(created, 'Rekening bank berhasil ditambahkan');
+  });
+
+  // PATCH /api/profile/bank-accounts/:id - Update bank account
+  fastify.patch('/bank-accounts/:id', async (request, reply) => {
+    const tenantId = request.tenantId;
+    const { id } = request.params as { id: string };
+    if (!tenantId) return reply.sendError('Unauthorized', 401);
+
+    const schema = z.object({
+      bankName: z.string().optional(),
+      accountNumber: z.string().optional(),
+      accountHolder: z.string().optional(),
+      isDefault: z.boolean().optional()
+    });
+
+    const body = schema.safeParse(request.body);
+    if (!body.success) {
+      return reply.sendError(body.error.issues[0].message);
+    }
+
+    // If setting as default, unset others
+    if (body.data.isDefault) {
+      await prisma.bankAccount.updateMany({
+        where: { tenantId },
+        data: { isDefault: false }
+      });
+    }
+
+    const updated = await prisma.bankAccount.update({
+      where: { id },
+      data: {
+        bankName: body.data.bankName,
+        accountNumber: body.data.accountNumber,
+        accountHolder: body.data.accountHolder,
+        isDefault: body.data.isDefault
+      }
+    });
+
+    return reply.sendSuccess(updated, 'Rekening bank berhasil diperbarui');
+  });
+
+  // DELETE /api/profile/bank-accounts/:id - Delete bank account
+  fastify.delete('/bank-accounts/:id', async (request, reply) => {
+    const tenantId = request.tenantId;
+    const { id } = request.params as { id: string };
+    if (!tenantId) return reply.sendError('Unauthorized', 401);
+
+    await prisma.bankAccount.delete({
+      where: { id }
+    });
+
+    return reply.sendSuccess(null, 'Rekening bank berhasil dihapus');
+  });
 };
 
 export default profileRoutes;

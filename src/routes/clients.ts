@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { prisma } from '@/lib/prisma';
-import { getSignedReadUrl } from '../lib/gcs';
+import { Prisma, ServiceRequest } from '@prisma/client';
+import { getSignedReadUrl, uploadToGcs } from '../lib/gcs';
 import { z } from 'zod';
 
 const clientSchema = z.object({
@@ -17,6 +18,15 @@ const clientSchema = z.object({
   email: z.string().email('Email tidak valid').min(1, 'Email wajib diisi'),
   ktpPath: z.string().optional().or(z.literal('')),
   npwpPath: z.string().optional().or(z.literal('')),
+  profilingData: z.object({
+    serviceCategory: z.enum(['AKTA', 'PPAT', 'NON_AKTA']),
+    documents: z.record(z.string(), z.object({
+      provided: z.boolean(),
+      url: z.string().optional().nullable(),
+    })),
+    additionalJobs: z.string().optional(),
+    estimatedCost: z.number().optional(),
+  }).optional(),
 });
 
 const clientRoutes: FastifyPluginAsync = async (fastify) => {
@@ -35,11 +45,38 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
           { nik: { contains: search } }
         ] : undefined
       },
+      include: {
+        stakeholderInDeeds: {
+          select: { id: true, name: true, role: true }
+        }
+      },
       orderBy: { name: 'asc' },
-      take: 20, // Limit for suggestions
+      take: 50, // Increased limit for search/suggestions
     });
 
     return reply.sendSuccess(clients);
+  });
+
+  // POST upload document
+  fastify.post('/upload', async (request, reply) => {
+    const { tenantId } = request.query as { tenantId: string };
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan', 400);
+
+    const data = await request.file();
+    if (!data) return reply.sendError('File tidak ditemukan', 400);
+
+    try {
+      const buffer = await data.toBuffer();
+      const filename = data.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const path = `clients/${tenantId}/documents/${Date.now()}-${filename}`;
+      
+      const gsPath = await uploadToGcs(buffer, path, data.mimetype);
+      
+      return reply.sendSuccess({ path: gsPath }, 'File berhasil diunggah');
+    } catch (error) {
+      console.error('Upload document error:', error);
+      return reply.sendError('Gagal mengunggah dokumen', 500);
+    }
   });
 
   // GET a single client by ID
@@ -57,7 +94,15 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
     // 1. Dapatkan data apa adanya dulu menggunakan findUnique (Primary Key)
     // Note: Kita bypass filter deletedAt/tenantId di level query untuk kemudahan debug
     const client = await prisma.client.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        stakeholderInDeeds: {
+          select: { id: true, name: true, role: true, ktpPath: true }
+        },
+        serviceRequests: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
     });
 
     // 2. Jika secara fisik tidak ada di DB
@@ -81,11 +126,42 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
       client.npwpPath ? getSignedReadUrl(client.npwpPath) : null
     ]);
 
+    const serviceRequestsWithUrls = await Promise.all(
+       client.serviceRequests.map(async (req: ServiceRequest) => {
+          if (!req.documents) return req;
+          
+          const docs = req.documents as Record<string, any>;
+          const signedDocs: Record<string, any> = {};
+          
+          for (const key in docs) {
+             const docData = docs[key];
+             if (typeof docData === 'object' && docData !== null && docData.url) {
+                try {
+                   const signedUrl = await getSignedReadUrl(docData.url);
+                   signedDocs[key] = { ...docData, signedUrl };
+                } catch (e) {
+                   signedDocs[key] = docData;
+                }
+             } else {
+                signedDocs[key] = docData;
+             }
+          }
+          
+          return {
+             ...req,
+             documents: signedDocs
+          };
+       })
+    );
+
     // Explicitly construct the response object to preserve virtual fields
     const clientData = {
       ...client,
+      serviceRequests: serviceRequestsWithUrls,
       ktpUrl: ktpUrl || null,
-      npwpUrl: npwpUrl || null
+      npwpUrl: npwpUrl || null,
+      // Mapping stakeholders as children for the UI
+      relatedParties: client.stakeholderInDeeds
     };
 
     return reply.sendSuccess(clientData);
@@ -107,20 +183,55 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
     if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
 
     try {
-      const client = await prisma.client.create({
-        data: {
-          ...result.data,
-          tenantId,
-          title: result.data.title || null,
-          gender: result.data.gender || null,
-          maritalStatus: result.data.maritalStatus || null,
-          npwp: result.data.npwp || null,
-          pob: result.data.pob || null,
-          dob: result.data.dob || null,
-          ktpPath: result.data.ktpPath || null,
-          npwpPath: result.data.npwpPath || null,
-        },
-      });
+      const { profilingData, ...clientData } = result.data;
+      
+      let client;
+      if (profilingData) {
+        client = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+          const newClient = await tx.client.create({
+            data: {
+              ...clientData,
+              tenantId,
+              title: clientData.title || null,
+              gender: clientData.gender || null,
+              maritalStatus: clientData.maritalStatus || null,
+              npwp: clientData.npwp || null,
+              pob: clientData.pob || null,
+              dob: clientData.dob || null,
+              ktpPath: clientData.ktpPath || null,
+              npwpPath: clientData.npwpPath || null,
+            },
+          });
+          
+          await tx.serviceRequest.create({
+            data: {
+              tenantId,
+              clientId: newClient.id,
+              serviceCategory: profilingData.serviceCategory,
+              documents: profilingData.documents,
+              additionalJobs: profilingData.additionalJobs || null,
+              estimatedCost: profilingData.estimatedCost || null,
+            }
+          });
+          
+          return newClient;
+        });
+      } else {
+        client = await prisma.client.create({
+          data: {
+            ...clientData,
+            tenantId,
+            title: clientData.title || null,
+            gender: clientData.gender || null,
+            maritalStatus: clientData.maritalStatus || null,
+            npwp: clientData.npwp || null,
+            pob: clientData.pob || null,
+            dob: clientData.dob || null,
+            ktpPath: clientData.ktpPath || null,
+            npwpPath: clientData.npwpPath || null,
+          },
+        });
+      }
 
       // Log Audit
       await fastify.logAudit({
@@ -134,7 +245,7 @@ const clientRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.sendSuccess(client, 'Klien baru berhasil didaftarkan');
     } catch (error: any) {
       if (error.code === 'P2002') {
-        return reply.sendError('NIK sudah terdaftar di sistem');
+        return reply.sendError('NIK sudah terdaftar di kantor ini');
       }
       throw error;
     }

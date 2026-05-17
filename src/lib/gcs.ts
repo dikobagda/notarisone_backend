@@ -10,11 +10,11 @@ if (!authOptions) {
   console.error('[GCS] Warning: No Google Cloud credentials found. Storage operations will fail.');
 }
 
-const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
+const bucketName = process.env.GCS_BUCKET_NAME || 'penagraha-dev';
 
 export const uploadToGcs = async (buffer: Buffer, fileName: string, contentType: string): Promise<string> => {
   const file = storage.bucket(bucketName).file(fileName);
-  
+
   await file.save(buffer, {
     metadata: { contentType },
     resumable: false
@@ -36,7 +36,7 @@ export const generateUploadUrl = async (fileName: string, contentType: string) =
       .bucket(bucketName)
       .file(fileName)
       .getSignedUrl(options);
-    
+
     return url;
   } catch (error) {
     console.error('Error generating signed URL:', error);

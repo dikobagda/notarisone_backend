@@ -52,11 +52,11 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       const invoiceData = {
         externalId: requestExternalId,
         amount,
-        description: `Berlangganan NotarisOne Paket ${body.data.tier}`,
-        payerEmail: owner?.email || 'admin@notarisone.com',
+        description: `Berlangganan penagraha Paket ${body.data.tier}`,
+        payerEmail: owner?.email || 'admin@penagraha.com',
         customer: {
           givenNames: owner?.name || tenant.name,
-          email: owner?.email || 'admin@notarisone.com',
+          email: owner?.email || 'admin@penagraha.com',
         },
         // Callback URLs
         successRedirectUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/dashboard/subscription?status=success`,

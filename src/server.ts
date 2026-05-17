@@ -27,6 +27,9 @@ import subscriptionRoutes from './routes/subscription';
 import gdocsRoutes from './routes/gdocs';
 import notificationRoutes from './routes/notifications';
 import waarmerkingRoutes from './routes/waarmerking';
+import additionalJobsRoutes from './routes/additional-jobs';
+import serviceRequestRoutes from './routes/service-requests';
+import libraryRoutes from './routes/library';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
 import { prisma } from './lib/prisma';
@@ -94,11 +97,14 @@ server.register(subscriptionRoutes, { prefix: '/api/subscription' });
 server.register(gdocsRoutes, { prefix: '/api/gdocs' });
 server.register(notificationRoutes, { prefix: '/api/notifications' });
 server.register(waarmerkingRoutes, { prefix: '/api/waarmerking' });
+server.register(additionalJobsRoutes, { prefix: '/api/additional-jobs' });
+server.register(serviceRequestRoutes, { prefix: '/api/service-requests' });
+server.register(libraryRoutes, { prefix: '/api/library' });
 
 // Health Check
 server.get('/', async (request, reply) => {
   return { 
-    message: 'Welcome to NotarisOne Backend API',
+    message: 'Welcome to penagraha Backend API',
     status: 'Running',
     documentation: '/health'
   };
@@ -138,7 +144,7 @@ const start = async () => {
   try {
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     await server.listen({ port, host: '0.0.0.0' });
-    console.log(`Server NotarisOne backend berjalan di port ${port}`);
+    console.log(`Server penagraha backend berjalan di port ${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

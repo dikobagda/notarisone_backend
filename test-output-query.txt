@@ -1,0 +1,14 @@
+prisma:error error parsing connection string, format must be 'mariadb://[<user>[:<password>]@]<host>[:<port>]/[<db>[?<opt1>=<value1>[&<opt2>=<value2>]]]'
+Prisma Query Error: Error: error parsing connection string, format must be 'mariadb://[<user>[:<password>]@]<host>[:<port>]/[<db>[?<opt1>=<value1>[&<opt2>=<value2>]]]'
+    at PrismaMariaDbAdapterFactory.connect (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/adapter-mariadb/dist/index.js:485:15)
+    at Function.connect (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/engines/client/LocalExecutor.ts:49:58)
+    at jt.#connectExecutor (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/engines/client/ClientEngine.ts:238:34)
+    at callback (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/engines/client/ClientEngine.ts:187:35)
+    at Object.runInChildSpan (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/tracing/TracingHelper.ts:28:12)
+    at fi.runInChildSpan (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/tracing/TracingHelper.ts:53:36)
+    at jt.#ensureStarted (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/engines/client/ClientEngine.ts:182:47)
+    at jt.request (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/core/engines/client/ClientEngine.ts:469:52)
+    at Object.singleLoader (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/RequestHandler.ts:112:52)
+    at Jr.request (/Users/dikobagda/.gemini/antigravity/scratch/notarisone/apps/backend/node_modules/@prisma/client/src/runtime/DataLoader.ts:26:27) {
+  clientVersion: '7.7.0'
+}

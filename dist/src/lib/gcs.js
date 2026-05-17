@@ -1,63 +1,13 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.downloadFromGcs = exports.getSignedReadUrl = exports.generateUploadUrl = exports.uploadToGcs = void 0;
 const storage_1 = require("@google-cloud/storage");
-const path_1 = __importDefault(require("path"));
-const KEY_PATH = path_1.default.join(process.cwd(), 'google-service-account.json');
-const fs_1 = __importDefault(require("fs"));
-let storageOptions = {};
-if (process.env.GCS_CREDENTIALS_BASE64) {
-    try {
-        const decoded = Buffer.from(process.env.GCS_CREDENTIALS_BASE64, 'base64').toString('utf-8');
-        const credentials = JSON.parse(decoded);
-        storageOptions = {
-            projectId: credentials.project_id,
-            credentials
-        };
-        console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_BASE64 environment variable.`);
-    }
-    catch (err) {
-        console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_BASE64! Details:`, err.message);
-    }
+const google_auth_1 = require("./google-auth");
+const authOptions = (0, google_auth_1.getGoogleCredentials)();
+const storage = new storage_1.Storage(authOptions || {});
+if (!authOptions) {
+    console.error('[GCS] Warning: No Google Cloud credentials found. Storage operations will fail.');
 }
-else if (process.env.GCS_CREDENTIALS_JSON) {
-    try {
-        let rawStr = process.env.GCS_CREDENTIALS_JSON.trim();
-        // Jika sistem .env meng-include tanda petik, kita strip
-        if ((rawStr.startsWith("'") && rawStr.endsWith("'")) || (rawStr.startsWith('"') && rawStr.endsWith('"'))) {
-            rawStr = rawStr.slice(1, -1);
-        }
-        // Attempting to fix backslash escapes hostinger randomly injects before curly braces
-        if (rawStr.startsWith('\\{')) {
-            rawStr = rawStr.replace(/\\{/g, '{').replace(/\\}/g, '}').replace(/\\"/g, '"');
-        }
-        // Perbaiki literal newline jika ada masalah escape sequence backslash
-        rawStr = rawStr.replace(/\\n/g, '\\n');
-        const credentials = JSON.parse(rawStr);
-        storageOptions = {
-            projectId: credentials.project_id,
-            credentials
-        };
-        console.log(`[GCS] Loaded credentials from GCS_CREDENTIALS_JSON environment variable.`);
-    }
-    catch (err) {
-        console.error(`[CRITICAL] Failed to parse GCS_CREDENTIALS_JSON from environment variables!`);
-        console.error(`[CRITICAL] JSON Parse Error Details:`, err.message);
-    }
-}
-else {
-    // Early check to help user
-    if (!fs_1.default.existsSync(KEY_PATH)) {
-        console.error(`[CRITICAL] GCS Key file not found at: ${KEY_PATH} and GCS_CREDENTIALS env vars are empty.`);
-    }
-    else {
-        storageOptions = { keyFilename: KEY_PATH };
-    }
-}
-const storage = new storage_1.Storage(storageOptions);
 const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
 const uploadToGcs = async (buffer, fileName, contentType) => {
     const file = storage.bucket(bucketName).file(fileName);

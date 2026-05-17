@@ -29,6 +29,8 @@ const google_1 = __importDefault(require("./routes/google"));
 const subscription_1 = __importDefault(require("./routes/subscription"));
 const gdocs_1 = __importDefault(require("./routes/gdocs"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
+const waarmerking_1 = __importDefault(require("./routes/waarmerking"));
+const additional_jobs_1 = __importDefault(require("./routes/additional-jobs"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cors_1 = __importDefault(require("@fastify/cors"));
 const server = (0, fastify_1.default)({
@@ -82,6 +84,8 @@ server.register(google_1.default, { prefix: '/api/google' });
 server.register(subscription_1.default, { prefix: '/api/subscription' });
 server.register(gdocs_1.default, { prefix: '/api/gdocs' });
 server.register(notifications_1.default, { prefix: '/api/notifications' });
+server.register(waarmerking_1.default, { prefix: '/api/waarmerking' });
+server.register(additional_jobs_1.default, { prefix: '/api/additional-jobs' });
 // Health Check
 server.get('/', async (request, reply) => {
     return {

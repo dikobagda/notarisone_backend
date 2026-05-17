@@ -1,0 +1,21 @@
+Mira: {
+  "id": "cmo5qvaxn00029kpxpbejrss7",
+  "tenantId": "cmo5pfwzw0007fypxangt02sa",
+  "name": "MIRA SETIAWAN",
+  "title": null,
+  "gender": null,
+  "maritalStatus": null,
+  "nik": "3171234567890123",
+  "npwp": null,
+  "pob": "JAKARTA",
+  "dob": "1986-02-18",
+  "address": "JAKARTA BARAT, RT/RW 007/008, KEL. JL. PASTI CEPAT A7/66, KEC. PEGADUNGAN",
+  "phone": "081229998833",
+  "email": "mirae@email.com",
+  "ktpPath": "gs://notarisone-dev/clients/ktp/1776601815020_3171234567890123.jpg",
+  "npwpPath": null,
+  "createdAt": "2026-04-19T12:30:47.579Z",
+  "updatedAt": "2026-04-19T12:30:47.579Z",
+  "deletedAt": null
+}
+Candidates: []

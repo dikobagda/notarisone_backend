@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("../lib/prisma");
-const gcs_1 = require("../lib/gcs");
+const prisma_1 = require("@/lib/prisma");
+const gcs_1 = require("@/lib/gcs");
 const zod_1 = require("zod");
-const email_1 = require("../lib/email");
+const email_1 = require("@/lib/email");
 const notification_service_1 = require("../services/notification-service");
-const google_calendar_1 = require("../lib/google-calendar");
+const google_calendar_1 = require("@/lib/google-calendar");
 const date_fns_1 = require("date-fns");
 const stakeholderSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, 'Nama stakeholder wajib diisi'),
@@ -54,7 +54,7 @@ const deedRoutes = async (fastify) => {
         const { gsPath } = request.query;
         if (!gsPath)
             return reply.sendError('gsPath wajib disertakan');
-        const { getSignedReadUrl } = require('../lib/gcs');
+        const { getSignedReadUrl } = require('@/lib/gcs');
         const url = await getSignedReadUrl(gsPath);
         if (!url)
             return reply.sendError('Gagal membuat URL pratinjau');

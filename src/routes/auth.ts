@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || "penagraha_local_secret_key";
 
 export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -108,9 +108,9 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
     
     try {
       await transporter.sendMail({
-        from: '"NotarisOne Security" <security@notarisone.com>',
+        from: '"penagraha Security" <security@penagraha.com>',
         to: user.email,
-        subject: "Reset Password Anda di NotarisOne",
+        subject: "Reset Password Anda di penagraha",
         html: `
           <h3>Permintaan Reset Password</h3>
           <p>Halo ${user.name}, seseorang telah meminta ganti password untuk akun Anda.</p>
@@ -307,7 +307,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
     // ── RESPOND IMMEDIATELY — jangan tunggu email ──
     reply.code(201).send({
       success: true,
-      message: 'Akun berhasil dibuat! Selamat datang di NotarisOne.',
+      message: 'Akun berhasil dibuat! Selamat datang di penagraha.',
       data: {
         token: sessionToken,
         user: {
@@ -336,16 +336,16 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
         };
 
         await transporter.sendMail({
-          from: process.env.SMTP_FROM || '"NotarisOne" <noreply@notarisone.com>',
+          from: process.env.SMTP_FROM || '"penagraha" <noreply@penagraha.com>',
           to: email,
-          subject: `Selamat datang di NotarisOne, ${name}! 🎉`,
+          subject: `Selamat datang di penagraha, ${name}! 🎉`,
           html: `
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Selamat Datang di NotarisOne</title>
+  <title>Selamat Datang di penagraha</title>
 </head>
 <body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px;">
@@ -358,7 +358,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
             <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:36px 40px;text-align:center;">
               <div style="background:rgba(255,255,255,0.15);display:inline-block;border-radius:12px;padding:10px 18px;margin-bottom:16px;">
                 <span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;">N</span>
-                <span style="font-size:16px;font-weight:700;color:#fff;margin-left:8px;">NotarisOne</span>
+                <span style="font-size:16px;font-weight:700;color:#fff;margin-left:8px;">penagraha</span>
               </div>
               <h1 style="color:#fff;font-size:26px;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">
                 Selamat Datang! 🎉
@@ -377,7 +377,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
                 Halo, <strong style="color:#fff;">${name}</strong> 👋
               </p>
               <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.7;margin:0 0 28px;">
-                Kami dengan bangga menyambut Anda sebagai bagian dari komunitas NotarisOne.
+                Kami dengan bangga menyambut Anda sebagai bagian dari komunitas penagraha.
                 Platform kami siap membantu Anda mengelola kantor notaris dengan lebih
                 efisien, aman, dan profesional.
               </p>
@@ -453,7 +453,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
                 Email ini dikirim secara otomatis. Jangan membalas pesan ini.
               </p>
               <p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;">
-                &copy; ${new Date().getFullYear()} NotarisOne. Hak cipta dilindungi undang-undang.
+                &copy; ${new Date().getFullYear()} penagraha. Hak cipta dilindungi undang-undang.
               </p>
             </td>
           </tr>

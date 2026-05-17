@@ -3,7 +3,7 @@ import fp from 'fastify-plugin';
 import { prisma } from '@/lib/prisma';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || "penagraha_local_secret_key";
 
 declare module 'fastify' {
   interface FastifyRequest {
