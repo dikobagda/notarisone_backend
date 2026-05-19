@@ -19,6 +19,7 @@ const deedSchema = z.object({
   clientId: z.string().min(1, 'Klien wajib dipilih'),
   createdById: z.string().min(1, 'Pembuat wajib diisi'),
   targetFinalization: z.string().optional().or(z.literal('')),
+  deedNumber: z.string().optional().nullable().or(z.literal('')),
   ppatData: z.object({
     nop: z.string().optional(),
     luasTanah: z.number().optional(),
@@ -138,6 +139,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
         data: {
           title: body.data.title,
           type: body.data.type as any,
+          deedNumber: body.data.deedNumber !== undefined ? (body.data.deedNumber || null) : undefined,
           targetFinalization: body.data.targetFinalization ? new Date(body.data.targetFinalization) : undefined,
         },
       });
@@ -149,13 +151,16 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
         resource: 'Deed',
         resourceId: id,
         payload: { 
-          old: { title: existingDeed.title, type: existingDeed.type },
-          new: { title: updatedDeed.title, type: updatedDeed.type }
+          old: { title: existingDeed.title, type: existingDeed.type, deedNumber: existingDeed.deedNumber },
+          new: { title: updatedDeed.title, type: updatedDeed.type, deedNumber: updatedDeed.deedNumber }
         },
       });
 
       return reply.sendSuccess(updatedDeed, 'Data akta berhasil diperbarui');
-    } catch (error) {
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+        return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+      }
       request.log.error(error);
       return reply.sendError('Gagal memperbarui akta');
     }
@@ -457,14 +462,31 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
         actionLog = 'UPLOAD_DEED_DRAFT';
       } else if (normalizedType === 'scan') {
         console.log(`[UPLOAD] Routing to SCAN path`);
+        
+        const finalDeedNumber = (deedNumber && deedNumber.trim() !== "") ? deedNumber.trim() : deed.deedNumber;
+        if (!finalDeedNumber || finalDeedNumber.trim() === "") {
+          return reply.code(400).send({ success: false, message: 'Nomor akta wajib diisi untuk melakukan finalisasi' });
+        }
+
+        const duplicate = await prisma.deed.findFirst({
+          where: {
+            deedNumber: finalDeedNumber,
+            id: { not: id },
+            deletedAt: null
+          }
+        });
+        if (duplicate) {
+          return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+        }
+
         const updateData: any = { 
           scanPath: gsPath,
           scanSize: BigInt(filePart.buffer.length)
         };
         
-        if (deedNumber && deedNumber.trim() !== "" && deed.status !== 'FINAL') {
-          console.log(`[UPLOAD] Finalizing deed with number: ${deedNumber}`);
-          updateData.deedNumber = deedNumber;
+        if (deed.status !== 'FINAL') {
+          console.log(`[UPLOAD] Finalizing deed with number: ${finalDeedNumber}`);
+          updateData.deedNumber = finalDeedNumber;
           updateData.status = 'FINAL';
         }
 
@@ -478,7 +500,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
             data: { 
               tenantId, 
               deedId: id, 
-              repertoriumNumber: deedNumber as string, 
+              repertoriumNumber: finalDeedNumber as string, 
               description: `Finalisasi Akta Otomatis: ${deed.title}` 
             }
           });
@@ -490,7 +512,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
                 clientName: client.name,
                 deedTitle: deed.title,
                 deedType: deed.type,
-                deedNumber: deedNumber as string
+                deedNumber: finalDeedNumber as string
              }).catch(err => console.error('[EMAIL] Background error:', err));
           }
         } else {
@@ -536,6 +558,9 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.sendSuccess({ gcsPath: gsPath, debugType: normalizedType, actionLog }, 'Dokumen berhasil diunggah');
     } catch (error: any) {
+      if (error.code === 'P2002') {
+        return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+      }
       request.log.error(error);
       return reply.sendError(`Gagal mengunggah dokumen: ${error.message || 'Terjadi kesalahan sistem'}`);
     }
