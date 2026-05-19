@@ -27,6 +27,7 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       request.url.startsWith('/api/auth') || 
       request.url.startsWith('/api/ocr') ||
       request.url.startsWith('/api/backauth') ||
+      request.url.startsWith('/api/admin') ||       // Admin routes handle their own JWT auth
       request.url.startsWith('/api/subscription/plans') ||
       request.url.startsWith('/api/subscription/webhook') ||
       request.url.startsWith('/api/subscription/debug') ||
@@ -51,14 +52,23 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       const userId = decoded.sub;
       
       const user = await prisma.user.findUnique({
-        where: { id: userId }
+        where: { id: userId },
+        include: { tenant: true }
       });
 
       if (!user) {
         return reply.code(403).send({ error: 'User tidak ditemukan' });
       }
 
-      // 4. Attach session data to request
+      // 4. Check if tenant is suspended — block all API access
+      if (user.tenant.status === 'SUSPENDED') {
+        return reply.code(403).send({ 
+          error: 'Akses ditangguhkan', 
+          message: `Akses kantor "${user.tenant.name}" telah ditangguhkan oleh platform administrator.`
+        });
+      }
+
+      // 5. Attach session data to request
       request.tenantId = user.tenantId;
       request.userId = user.id;
       request.role = user.role;

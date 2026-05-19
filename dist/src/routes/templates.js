@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const templateRoutes = async (fastify) => {
     // GET all templates
     fastify.get('/', async (request, reply) => {

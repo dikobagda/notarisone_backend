@@ -1,11 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
-const gcs_1 = require("@/lib/gcs");
+const prisma_1 = require("../lib/prisma");
+const gcs_1 = require("../lib/gcs");
 const zod_1 = require("zod");
-const email_1 = require("@/lib/email");
+const email_1 = require("../lib/email");
 const notification_service_1 = require("../services/notification-service");
-const google_calendar_1 = require("@/lib/google-calendar");
+const google_calendar_1 = require("../lib/google-calendar");
 const date_fns_1 = require("date-fns");
 const stakeholderSchema = zod_1.z.object({
     name: zod_1.z.string().min(1, 'Nama stakeholder wajib diisi'),
@@ -25,7 +25,8 @@ const deedSchema = zod_1.z.object({
         lokasiAlamat: zod_1.z.string().optional(),
         latitude: zod_1.z.number().optional(),
         longitude: zod_1.z.number().optional(),
-    }).optional()
+    }).optional(),
+    serviceRequestId: zod_1.z.string().optional().or(zod_1.z.literal('')),
 });
 const deedRoutes = async (fastify) => {
     // GET all deeds
@@ -54,7 +55,7 @@ const deedRoutes = async (fastify) => {
         const { gsPath } = request.query;
         if (!gsPath)
             return reply.sendError('gsPath wajib disertakan');
-        const { getSignedReadUrl } = require('@/lib/gcs');
+        const { getSignedReadUrl } = require('../lib/gcs');
         const url = await getSignedReadUrl(gsPath);
         if (!url)
             return reply.sendError('Gagal membuat URL pratinjau');
@@ -151,6 +152,7 @@ const deedRoutes = async (fastify) => {
                 createdBy: true,
                 stakeholders: true,
                 ppatData: true,
+                serviceRequest: true,
                 versions: { orderBy: { versionNumber: 'desc' } }
             },
         });
@@ -197,6 +199,7 @@ const deedRoutes = async (fastify) => {
                     tenantId,
                     status: 'DRAFT',
                     targetFinalization: val.data.targetFinalization ? new Date(val.data.targetFinalization) : null,
+                    serviceRequestId: val.data.serviceRequestId || null,
                     ...(val.data.ppatData && {
                         ppatData: {
                             create: val.data.ppatData
@@ -204,6 +207,19 @@ const deedRoutes = async (fastify) => {
                     })
                 }
             });
+            // Update ServiceRequest status to IN_PROGRESS if linked
+            if (val.data.serviceRequestId) {
+                try {
+                    await prisma_1.prisma.serviceRequest.update({
+                        where: { id: val.data.serviceRequestId },
+                        data: { status: 'IN_PROGRESS' }
+                    });
+                }
+                catch (srError) {
+                    console.error("[DEBUG] Failed to update ServiceRequest status:", srError);
+                    // Don't fail the whole request if status update fails
+                }
+            }
             // Notify tenant about new deed
             await notification_service_1.NotificationService.notifyTenant({
                 tenantId,
@@ -576,6 +592,38 @@ const deedRoutes = async (fastify) => {
         catch (error) {
             request.log.error(error);
             return reply.sendError('Gagal menambahkan pihak terkait');
+        }
+    });
+    // DELETE a deed (Soft delete)
+    fastify.delete('/:id', async (request, reply) => {
+        const { id } = request.params;
+        const { tenantId } = request.query;
+        if (!tenantId)
+            return reply.sendError('Tenant ID wajib disertakan');
+        try {
+            const deed = await prisma_1.prisma.deed.findFirst({
+                where: { id, tenantId, deletedAt: null }
+            });
+            if (!deed) {
+                return reply.sendError('Akta tidak ditemukan atau sudah dihapus', 404);
+            }
+            await prisma_1.prisma.deed.delete({
+                where: { id }
+            });
+            // Log Audit
+            await fastify.logAudit({
+                tenantId,
+                userId: request.userId,
+                action: 'DELETE_DEED',
+                resource: 'Deed',
+                resourceId: id,
+                payload: { title: deed.title, type: deed.type },
+            });
+            return reply.sendSuccess(null, 'Akta berhasil dihapus');
+        }
+        catch (error) {
+            console.error('Delete deed error:', error);
+            return reply.sendError('Gagal menghapus akta');
         }
     });
 };

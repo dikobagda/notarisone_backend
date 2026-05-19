@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const auditRoutes = async (fastify) => {
     // GET audit logs for the current tenant (optionally filtered by resourceId)
     fastify.get('/', async (request, reply) => {

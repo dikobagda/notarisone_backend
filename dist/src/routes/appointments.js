@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
-const google_calendar_1 = require("@/lib/google-calendar");
+const google_calendar_1 = require("../lib/google-calendar");
 const notification_service_1 = require("../services/notification-service");
 const appointmentRoutes = async (fastify) => {
     // GET /api/appointments - List appointments

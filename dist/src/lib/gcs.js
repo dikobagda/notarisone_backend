@@ -8,7 +8,7 @@ const storage = new storage_1.Storage(authOptions || {});
 if (!authOptions) {
     console.error('[GCS] Warning: No Google Cloud credentials found. Storage operations will fail.');
 }
-const bucketName = process.env.GCS_BUCKET_NAME || 'notarisone-dev';
+const bucketName = process.env.GCS_BUCKET_NAME || 'penagraha-dev';
 const uploadToGcs = async (buffer, fileName, contentType) => {
     const file = storage.bucket(bucketName).file(fileName);
     await file.save(buffer, {

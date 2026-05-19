@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.profileRoutes = void 0;
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const profileRoutes = async (fastify) => {
@@ -150,6 +150,96 @@ const profileRoutes = async (fastify) => {
             payload: body.data
         });
         return reply.sendSuccess(updated, 'Info kantor berhasil diperbarui');
+    });
+    // GET /api/profile/bank-accounts - Fetch bank accounts
+    fastify.get('/bank-accounts', async (request, reply) => {
+        const tenantId = request.tenantId;
+        console.log("[DEBUG] Fetching banks for tenant:", tenantId);
+        if (!tenantId)
+            return reply.sendError('Unauthorized', 401);
+        const bankAccounts = await prisma_1.prisma.bankAccount.findMany({
+            where: { tenantId }
+        });
+        console.log("[DEBUG] Found banks:", bankAccounts.length);
+        return reply.sendSuccess(bankAccounts);
+    });
+    // POST /api/profile/bank-accounts - Add bank account
+    fastify.post('/bank-accounts', async (request, reply) => {
+        const tenantId = request.tenantId;
+        if (!tenantId)
+            return reply.sendError('Unauthorized', 401);
+        const schema = zod_1.z.object({
+            bankName: zod_1.z.string().min(1, 'Nama bank wajib diisi'),
+            accountNumber: zod_1.z.string().min(1, 'Nomor rekening wajib diisi'),
+            accountHolder: zod_1.z.string().min(1, 'Nama pemilik rekening wajib diisi'),
+            isDefault: zod_1.z.boolean().optional().default(false)
+        });
+        const body = schema.safeParse(request.body);
+        if (!body.success) {
+            return reply.sendError(body.error.issues[0].message);
+        }
+        // If setting as default, unset others
+        if (body.data.isDefault) {
+            await prisma_1.prisma.bankAccount.updateMany({
+                where: { tenantId },
+                data: { isDefault: false }
+            });
+        }
+        const created = await prisma_1.prisma.bankAccount.create({
+            data: {
+                tenantId,
+                bankName: body.data.bankName,
+                accountNumber: body.data.accountNumber,
+                accountHolder: body.data.accountHolder,
+                isDefault: body.data.isDefault
+            }
+        });
+        return reply.sendSuccess(created, 'Rekening bank berhasil ditambahkan');
+    });
+    // PATCH /api/profile/bank-accounts/:id - Update bank account
+    fastify.patch('/bank-accounts/:id', async (request, reply) => {
+        const tenantId = request.tenantId;
+        const { id } = request.params;
+        if (!tenantId)
+            return reply.sendError('Unauthorized', 401);
+        const schema = zod_1.z.object({
+            bankName: zod_1.z.string().optional(),
+            accountNumber: zod_1.z.string().optional(),
+            accountHolder: zod_1.z.string().optional(),
+            isDefault: zod_1.z.boolean().optional()
+        });
+        const body = schema.safeParse(request.body);
+        if (!body.success) {
+            return reply.sendError(body.error.issues[0].message);
+        }
+        // If setting as default, unset others
+        if (body.data.isDefault) {
+            await prisma_1.prisma.bankAccount.updateMany({
+                where: { tenantId },
+                data: { isDefault: false }
+            });
+        }
+        const updated = await prisma_1.prisma.bankAccount.update({
+            where: { id },
+            data: {
+                bankName: body.data.bankName,
+                accountNumber: body.data.accountNumber,
+                accountHolder: body.data.accountHolder,
+                isDefault: body.data.isDefault
+            }
+        });
+        return reply.sendSuccess(updated, 'Rekening bank berhasil diperbarui');
+    });
+    // DELETE /api/profile/bank-accounts/:id - Delete bank account
+    fastify.delete('/bank-accounts/:id', async (request, reply) => {
+        const tenantId = request.tenantId;
+        const { id } = request.params;
+        if (!tenantId)
+            return reply.sendError('Unauthorized', 401);
+        await prisma_1.prisma.bankAccount.delete({
+            where: { id }
+        });
+        return reply.sendSuccess(null, 'Rekening bank berhasil dihapus');
     });
 };
 exports.profileRoutes = profileRoutes;

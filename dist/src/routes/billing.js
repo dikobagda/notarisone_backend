@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = billingRoutes;
 const zod_1 = require("zod");
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 async function billingRoutes(fastify) {
     // GET all invoices for current tenant
     fastify.get('/invoices', async (request, reply) => {

@@ -44,6 +44,7 @@ declare module 'fastify' {
 const server = Fastify({
   logger: true,
   ignoreTrailingSlash: true,
+  bodyLimit: 10 * 1024 * 1024, // 10MB limit for logo Base64 payload
 });
 
 // Register Plugins
@@ -112,6 +113,40 @@ server.get('/', async (request, reply) => {
 
 server.get('/health', async (request, reply) => {
   return { status: 'OK', timestamp: new Date().toISOString() };
+});
+
+// Public Settings for Landing Page (logo, banner, etc)
+server.get('/api/public/settings', async (request, reply) => {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { id: 'SYSTEM' }
+    });
+    if (!setting) {
+      return reply.sendSuccess({
+        logoUrl: '/logo-penagraha.png',
+        bannerActive: false,
+        bannerText: 'Selamat datang di penagraha!',
+        maintenanceMode: false,
+        maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
+      });
+    }
+    return reply.sendSuccess({
+      logoUrl: setting.logoUrl,
+      bannerActive: setting.bannerActive,
+      bannerText: setting.bannerText,
+      maintenanceMode: setting.maintenanceMode,
+      maintenanceMsg: setting.maintenanceMsg,
+    });
+  } catch (error) {
+    server.log.error(error);
+    return reply.sendSuccess({
+      logoUrl: '/logo-penagraha.png',
+      bannerActive: false,
+      bannerText: 'Selamat datang di penagraha!',
+      maintenanceMode: false,
+      maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
+    });
+  }
 });
 
 // Basic Error Handler

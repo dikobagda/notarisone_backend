@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const crypto_1 = __importDefault(require("crypto"));
-const email_1 = require("@/lib/email");
+const email_1 = require("../lib/email");
 const tenantTeamRoutes = async (fastify) => {
     // GET /api/tenant-teams - List pending invitations
     fastify.get('/', async (request, reply) => {

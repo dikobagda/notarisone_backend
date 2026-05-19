@@ -33,32 +33,91 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
     const { email, password } = body.data;
     console.log(`[Backend] Permintaan login masuk untuk: ${email}`);
 
-    const user = await prisma.user.findUnique({ 
+    let user = await prisma.user.findUnique({ 
       where: { email },
       include: { tenant: true }
     });
 
+    let isAdmin = false;
+    let adminUser = null;
+
     if (!user) {
-      console.log(`[Backend] Login gagal: User tidak ditemukan`);
-      return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+      // Coba cari di tabel AdminUser
+      adminUser = await prisma.adminUser.findUnique({
+        where: { email }
+      });
+      
+      if (!adminUser) {
+        console.log(`[Backend] Login gagal: User tidak ditemukan`);
+        return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+      }
+      isAdmin = true;
     }
 
-    const validPassword = await bcrypt.compare(password, user.password);
+    const validPassword = await bcrypt.compare(password, isAdmin ? adminUser!.password : user!.password);
     if (!validPassword) {
-      console.log(`[Backend] Login gagal: Password salah`);
-      return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+      // Fallback check for unhashed passwords in seed (e.g. admin@notarisone.id)
+      const isSeedAdmin = isAdmin && password === adminUser!.password;
+      if (!isSeedAdmin) {
+        console.log(`[Backend] Login gagal: Password salah`);
+        return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+      }
     }
 
-    if (user.isLocked) {
+    if (!isAdmin && user!.isLocked) {
       console.log(`[Backend] Login gagal: Akun terkunci (${email})`);
       return reply.code(403).send({ success: false, message: 'Akun Anda telah dinonaktifkan sementara. Hubungi admin.' });
     }
-    
-    console.log(`[Backend] Login sukses untuk: ${email}, Plan: ${user.tenant.subscription}`);
+
+    // Check if the tenant is suspended
+    if (!isAdmin && user!.tenant.status === 'SUSPENDED') {
+      console.log(`[Backend] Login gagal: Tenant ditangguhkan (${user!.tenant.name})`);
+      return reply.code(403).send({ 
+        success: false, 
+        message: `Akses kantor "${user!.tenant.name}" telah ditangguhkan oleh administrator platform. Silakan hubungi support@penagraha.com untuk informasi lebih lanjut.`
+      });
+    }
+    if (isAdmin && adminUser!.isLocked) {
+      console.log(`[Backend] Login gagal: Akun admin terkunci (${email})`);
+      return reply.code(403).send({ success: false, message: 'Akun admin Anda telah dinonaktifkan oleh super admin.' });
+    }
+
+    if (isAdmin) {
+      console.log(`[Backend] Login sukses untuk ADMIN: ${email}`);
+
+      // Generate stateless Backend JWT for Admin
+      const token = jwt.sign(
+        { sub: adminUser!.id, tenantId: 'SYSTEM', role: adminUser!.role, plan: 'ENTERPRISE' },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+
+      return reply.send({
+        success: true,
+        data: {
+          token,
+          user: { 
+            id: adminUser!.id, 
+            email: adminUser!.email, 
+            name: adminUser!.name, 
+            role: adminUser!.role, 
+            tenantId: 'SYSTEM',
+            plan: 'ENTERPRISE' 
+          },
+          tenant: {
+            id: 'SYSTEM',
+            name: 'Penagraha System Admin',
+            subscription: 'ENTERPRISE'
+          }
+        }
+      });
+    }
+
+    console.log(`[Backend] Login sukses untuk: ${email}, Plan: ${user!.tenant.subscription}`);
 
     // Generate stateless Backend JWT
     const token = jwt.sign(
-      { sub: user.id, tenantId: user.tenantId, role: user.role, plan: user.tenant.subscription },
+      { sub: user!.id, tenantId: user!.tenantId, role: user!.role, plan: user!.tenant.subscription },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -68,17 +127,17 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
       data: {
         token,
         user: { 
-          id: user.id, 
-          email: user.email, 
-          name: user.name, 
-          role: user.role, 
-          tenantId: user.tenantId,
-          plan: user.tenant.subscription 
+          id: user!.id, 
+          email: user!.email, 
+          name: user!.name, 
+          role: user!.role, 
+          tenantId: user!.tenantId,
+          plan: user!.tenant.subscription 
         },
         tenant: {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          subscription: user.tenant.subscription
+          id: user!.tenant.id,
+          name: user!.tenant.name,
+          subscription: user!.tenant.subscription
         }
       }
     });

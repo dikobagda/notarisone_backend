@@ -31,6 +31,8 @@ const gdocs_1 = __importDefault(require("./routes/gdocs"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const waarmerking_1 = __importDefault(require("./routes/waarmerking"));
 const additional_jobs_1 = __importDefault(require("./routes/additional-jobs"));
+const service_requests_1 = __importDefault(require("./routes/service-requests"));
+const library_1 = __importDefault(require("./routes/library"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cors_1 = __importDefault(require("@fastify/cors"));
 const server = (0, fastify_1.default)({
@@ -86,10 +88,12 @@ server.register(gdocs_1.default, { prefix: '/api/gdocs' });
 server.register(notifications_1.default, { prefix: '/api/notifications' });
 server.register(waarmerking_1.default, { prefix: '/api/waarmerking' });
 server.register(additional_jobs_1.default, { prefix: '/api/additional-jobs' });
+server.register(service_requests_1.default, { prefix: '/api/service-requests' });
+server.register(library_1.default, { prefix: '/api/library' });
 // Health Check
 server.get('/', async (request, reply) => {
     return {
-        message: 'Welcome to NotarisOne Backend API',
+        message: 'Welcome to penagraha Backend API',
         status: 'Running',
         documentation: '/health'
     };
@@ -123,7 +127,7 @@ const start = async () => {
     try {
         const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
         await server.listen({ port, host: '0.0.0.0' });
-        console.log(`Server NotarisOne backend berjalan di port ${port}`);
+        console.log(`Server penagraha backend berjalan di port ${port}`);
     }
     catch (err) {
         server.log.error(err);

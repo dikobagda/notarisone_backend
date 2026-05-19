@@ -17,9 +17,9 @@ const transporter = nodemailer_1.default.createTransport({
 async function sendDeedNotification(to, template, context) {
     let subject = '';
     let html = '';
-    const { clientName, deedTitle, deedType, deedNumber, notaryName = 'NotarisOne System' } = context;
+    const { clientName, deedTitle, deedType, deedNumber, notaryName = 'penagraha System' } = context;
     if (template === 'DRAFT_CREATED') {
-        subject = `[NotarisOne] Draf Akta Baru: ${deedTitle}`;
+        subject = `[penagraha] Draf Akta Baru: ${deedTitle}`;
         html = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
         <h2 style="color: #4f46e5; border-bottom: 2px solid #f3f4f6; pb: 10px;">Pemberitahuan Draf Akta Baru</h2>
@@ -41,7 +41,7 @@ async function sendDeedNotification(to, template, context) {
     `;
     }
     else if (template === 'DEED_FINALIZED') {
-        subject = `[NotarisOne] Akta Berhasil Difinalisasi: ${deedNumber}`;
+        subject = `[penagraha] Akta Berhasil Difinalisasi: ${deedNumber}`;
         html = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
         <h2 style="color: #059669; border-bottom: 2px solid #f3f4f6; pb: 10px;">Akta Telah Final & Selesai</h2>
@@ -65,12 +65,12 @@ async function sendDeedNotification(to, template, context) {
     }
     else if (template === 'TEAM_INVITATION') {
         const inviteUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/join?token=${context.token}`;
-        subject = `[NotarisOne] Undangan Bergabung: ${context.kantorName}`;
+        subject = `[penagraha] Undangan Bergabung: ${context.kantorName}`;
         html = `
       <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
         <h2 style="color: #4f46e5; border-bottom: 2px solid #f3f4f6; pb: 10px;">Undangan Anggota Tim Baru</h2>
         <p>Halo,</p>
-        <p>Anda telah diundang untuk bergabung dengan <strong>${context.kantorName}</strong> di platform NotarisOne sebagai <strong>${context.role}</strong>.</p>
+        <p>Anda telah diundang untuk bergabung dengan <strong>${context.kantorName}</strong> di platform penagraha sebagai <strong>${context.role}</strong>.</p>
         <div style="text-align: center; margin: 30px 0;">
           <a href="${inviteUrl}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
             Terima Undangan & Buat Akun
@@ -81,14 +81,14 @@ async function sendDeedNotification(to, template, context) {
         <p style="margin-top: 30px; font-size: 12px; color: #9ca3af; border-top: 1px solid #eee; pt: 10px;">
           Link ini berlaku selama 48 jam.<br/>
           Terima kasih,<br/>
-          <strong>Tim NotarisOne</strong>
+          <strong>Tim penagraha</strong>
         </p>
       </div>
     `;
     }
     try {
         const info = await transporter.sendMail({
-            from: process.env.SMTP_FROM || '"NotarisOne" <noreply@notarisone.com>',
+            from: process.env.SMTP_FROM || '"penagraha" <noreply@penagraha.com>',
             to,
             subject,
             html,

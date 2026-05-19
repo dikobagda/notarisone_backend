@@ -4,13 +4,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authApiRoutes = void 0;
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const zod_1 = require("zod");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = __importDefault(require("nodemailer"));
 const crypto_1 = __importDefault(require("crypto"));
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || "penagraha_local_secret_key";
 const authApiRoutes = async (fastify) => {
     // SMTP Transporter — baca dari environment variable
     const transporter = nodemailer_1.default.createTransport({
@@ -31,22 +31,71 @@ const authApiRoutes = async (fastify) => {
             return reply.code(400).send({ success: false, message: 'Data tidak valid' });
         const { email, password } = body.data;
         console.log(`[Backend] Permintaan login masuk untuk: ${email}`);
-        const user = await prisma_1.prisma.user.findUnique({
+        let user = await prisma_1.prisma.user.findUnique({
             where: { email },
             include: { tenant: true }
         });
+        let isAdmin = false;
+        let adminUser = null;
         if (!user) {
-            console.log(`[Backend] Login gagal: User tidak ditemukan`);
-            return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+            // Coba cari di tabel AdminUser
+            adminUser = await prisma_1.prisma.adminUser.findUnique({
+                where: { email }
+            });
+            if (!adminUser) {
+                console.log(`[Backend] Login gagal: User tidak ditemukan`);
+                return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+            }
+            isAdmin = true;
         }
-        const validPassword = await bcryptjs_1.default.compare(password, user.password);
+        const validPassword = await bcryptjs_1.default.compare(password, isAdmin ? adminUser.password : user.password);
         if (!validPassword) {
-            console.log(`[Backend] Login gagal: Password salah`);
-            return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+            // Fallback check for unhashed passwords in seed (e.g. admin@notarisone.id)
+            const isSeedAdmin = isAdmin && password === adminUser.password;
+            if (!isSeedAdmin) {
+                console.log(`[Backend] Login gagal: Password salah`);
+                return reply.code(401).send({ success: false, message: 'Email atau password salah' });
+            }
         }
-        if (user.isLocked) {
+        if (!isAdmin && user.isLocked) {
             console.log(`[Backend] Login gagal: Akun terkunci (${email})`);
             return reply.code(403).send({ success: false, message: 'Akun Anda telah dinonaktifkan sementara. Hubungi admin.' });
+        }
+        // Check if the tenant is suspended
+        if (!isAdmin && user.tenant.status === 'SUSPENDED') {
+            console.log(`[Backend] Login gagal: Tenant ditangguhkan (${user.tenant.name})`);
+            return reply.code(403).send({
+                success: false,
+                message: `Akses kantor "${user.tenant.name}" telah ditangguhkan oleh administrator platform. Silakan hubungi support@penagraha.com untuk informasi lebih lanjut.`
+            });
+        }
+        if (isAdmin && adminUser.isLocked) {
+            console.log(`[Backend] Login gagal: Akun admin terkunci (${email})`);
+            return reply.code(403).send({ success: false, message: 'Akun admin Anda telah dinonaktifkan oleh super admin.' });
+        }
+        if (isAdmin) {
+            console.log(`[Backend] Login sukses untuk ADMIN: ${email}`);
+            // Generate stateless Backend JWT for Admin
+            const token = jsonwebtoken_1.default.sign({ sub: adminUser.id, tenantId: 'SYSTEM', role: adminUser.role, plan: 'ENTERPRISE' }, JWT_SECRET, { expiresIn: '7d' });
+            return reply.send({
+                success: true,
+                data: {
+                    token,
+                    user: {
+                        id: adminUser.id,
+                        email: adminUser.email,
+                        name: adminUser.name,
+                        role: adminUser.role,
+                        tenantId: 'SYSTEM',
+                        plan: 'ENTERPRISE'
+                    },
+                    tenant: {
+                        id: 'SYSTEM',
+                        name: 'Penagraha System Admin',
+                        subscription: 'ENTERPRISE'
+                    }
+                }
+            });
         }
         console.log(`[Backend] Login sukses untuk: ${email}, Plan: ${user.tenant.subscription}`);
         // Generate stateless Backend JWT
@@ -91,9 +140,9 @@ const authApiRoutes = async (fastify) => {
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/reset-password?token=${resetToken}`;
         try {
             await transporter.sendMail({
-                from: '"NotarisOne Security" <security@notarisone.com>',
+                from: '"penagraha Security" <security@penagraha.com>',
                 to: user.email,
-                subject: "Reset Password Anda di NotarisOne",
+                subject: "Reset Password Anda di penagraha",
                 html: `
           <h3>Permintaan Reset Password</h3>
           <p>Halo ${user.name}, seseorang telah meminta ganti password untuk akun Anda.</p>
@@ -256,7 +305,7 @@ const authApiRoutes = async (fastify) => {
         // ── RESPOND IMMEDIATELY — jangan tunggu email ──
         reply.code(201).send({
             success: true,
-            message: 'Akun berhasil dibuat! Selamat datang di NotarisOne.',
+            message: 'Akun berhasil dibuat! Selamat datang di penagraha.',
             data: {
                 token: sessionToken,
                 user: {
@@ -283,16 +332,16 @@ const authApiRoutes = async (fastify) => {
                     ENTERPRISE: 'Enterprise',
                 };
                 await transporter.sendMail({
-                    from: process.env.SMTP_FROM || '"NotarisOne" <noreply@notarisone.com>',
+                    from: process.env.SMTP_FROM || '"penagraha" <noreply@penagraha.com>',
                     to: email,
-                    subject: `Selamat datang di NotarisOne, ${name}! 🎉`,
+                    subject: `Selamat datang di penagraha, ${name}! 🎉`,
                     html: `
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Selamat Datang di NotarisOne</title>
+  <title>Selamat Datang di penagraha</title>
 </head>
 <body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:40px 20px;">
@@ -305,7 +354,7 @@ const authApiRoutes = async (fastify) => {
             <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:36px 40px;text-align:center;">
               <div style="background:rgba(255,255,255,0.15);display:inline-block;border-radius:12px;padding:10px 18px;margin-bottom:16px;">
                 <span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:-0.5px;">N</span>
-                <span style="font-size:16px;font-weight:700;color:#fff;margin-left:8px;">NotarisOne</span>
+                <span style="font-size:16px;font-weight:700;color:#fff;margin-left:8px;">penagraha</span>
               </div>
               <h1 style="color:#fff;font-size:26px;font-weight:900;margin:0 0 8px;letter-spacing:-0.5px;">
                 Selamat Datang! 🎉
@@ -324,7 +373,7 @@ const authApiRoutes = async (fastify) => {
                 Halo, <strong style="color:#fff;">${name}</strong> 👋
               </p>
               <p style="color:rgba(255,255,255,0.6);font-size:14px;line-height:1.7;margin:0 0 28px;">
-                Kami dengan bangga menyambut Anda sebagai bagian dari komunitas NotarisOne.
+                Kami dengan bangga menyambut Anda sebagai bagian dari komunitas penagraha.
                 Platform kami siap membantu Anda mengelola kantor notaris dengan lebih
                 efisien, aman, dan profesional.
               </p>
@@ -400,7 +449,7 @@ const authApiRoutes = async (fastify) => {
                 Email ini dikirim secara otomatis. Jangan membalas pesan ini.
               </p>
               <p style="color:rgba(255,255,255,0.15);font-size:11px;margin:0;">
-                &copy; ${new Date().getFullYear()} NotarisOne. Hak cipta dilindungi undang-undang.
+                &copy; ${new Date().getFullYear()} penagraha. Hak cipta dilindungi undang-undang.
               </p>
             </td>
           </tr>

@@ -75,7 +75,12 @@ async function main() {
     const createdClients = [];
     for (const c of sampleClients) {
         const client = await prisma.client.upsert({
-            where: { nik: c.nik },
+            where: {
+                tenantId_nik: {
+                    tenantId: tenant.id,
+                    nik: c.nik,
+                },
+            },
             update: {},
             create: {
                 ...c,

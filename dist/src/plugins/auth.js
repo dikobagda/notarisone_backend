@@ -4,9 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const fastify_plugin_1 = __importDefault(require("fastify-plugin"));
-const prisma_1 = require("@/lib/prisma");
+const prisma_1 = require("../lib/prisma");
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "notarisone_local_secret_key";
+const JWT_SECRET = process.env.NEXTAUTH_SECRET || "penagraha_local_secret_key";
 const authPlugin = async (fastify) => {
     // Initialize custom request properties
     fastify.decorateRequest('tenantId', '');
@@ -19,6 +19,7 @@ const authPlugin = async (fastify) => {
             request.url.startsWith('/api/auth') ||
             request.url.startsWith('/api/ocr') ||
             request.url.startsWith('/api/backauth') ||
+            request.url.startsWith('/api/admin') || // Admin routes handle their own JWT auth
             request.url.startsWith('/api/subscription/plans') ||
             request.url.startsWith('/api/subscription/webhook') ||
             request.url.startsWith('/api/subscription/debug') ||
@@ -36,12 +37,20 @@ const authPlugin = async (fastify) => {
             // 3. User verification against local database
             const userId = decoded.sub;
             const user = await prisma_1.prisma.user.findUnique({
-                where: { id: userId }
+                where: { id: userId },
+                include: { tenant: true }
             });
             if (!user) {
                 return reply.code(403).send({ error: 'User tidak ditemukan' });
             }
-            // 4. Attach session data to request
+            // 4. Check if tenant is suspended — block all API access
+            if (user.tenant.status === 'SUSPENDED') {
+                return reply.code(403).send({
+                    error: 'Akses ditangguhkan',
+                    message: `Akses kantor "${user.tenant.name}" telah ditangguhkan oleh platform administrator.`
+                });
+            }
+            // 5. Attach session data to request
             request.tenantId = user.tenantId;
             request.userId = user.id;
             request.role = user.role;
