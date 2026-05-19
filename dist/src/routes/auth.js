@@ -99,7 +99,7 @@ const authApiRoutes = async (fastify) => {
         }
         console.log(`[Backend] Login sukses untuk: ${email}, Plan: ${user.tenant.subscription}`);
         // Generate stateless Backend JWT
-        const token = jsonwebtoken_1.default.sign({ sub: user.id, tenantId: user.tenantId, role: user.role, plan: user.tenant.subscription }, JWT_SECRET, { expiresIn: '7d' });
+        const token = jsonwebtoken_1.default.sign({ sub: user.id, tenantId: user.tenantId, role: user.role, plan: user.tenant.subscription, allowedMenus: user.allowedMenus }, JWT_SECRET, { expiresIn: '7d' });
         return reply.send({
             success: true,
             data: {
@@ -110,7 +110,8 @@ const authApiRoutes = async (fastify) => {
                     name: user.name,
                     role: user.role,
                     tenantId: user.tenantId,
-                    plan: user.tenant.subscription
+                    plan: user.tenant.subscription,
+                    allowedMenus: user.allowedMenus
                 },
                 tenant: {
                     id: user.tenant.id,

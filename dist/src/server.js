@@ -35,9 +35,11 @@ const service_requests_1 = __importDefault(require("./routes/service-requests"))
 const library_1 = __importDefault(require("./routes/library"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cors_1 = __importDefault(require("@fastify/cors"));
+const prisma_1 = require("./lib/prisma");
 const server = (0, fastify_1.default)({
     logger: true,
     ignoreTrailingSlash: true,
+    bodyLimit: 10 * 1024 * 1024, // 10MB limit for logo Base64 payload
 });
 // Register Plugins
 server.register(audit_1.default);
@@ -45,7 +47,7 @@ server.register(auth_2.default);
 server.register(cors_1.default, {
     origin: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Tenant-Id', 'x-tenant-id'],
     credentials: true,
 });
 server.register(multipart_1.default, {
@@ -100,6 +102,40 @@ server.get('/', async (request, reply) => {
 });
 server.get('/health', async (request, reply) => {
     return { status: 'OK', timestamp: new Date().toISOString() };
+});
+// Public Settings for Landing Page (logo, banner, etc)
+server.get('/api/public/settings', async (request, reply) => {
+    try {
+        const setting = await prisma_1.prisma.systemSetting.findUnique({
+            where: { id: 'SYSTEM' }
+        });
+        if (!setting) {
+            return reply.sendSuccess({
+                logoUrl: '/logo-penagraha.png',
+                bannerActive: false,
+                bannerText: 'Selamat datang di penagraha!',
+                maintenanceMode: false,
+                maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
+            });
+        }
+        return reply.sendSuccess({
+            logoUrl: setting.logoUrl,
+            bannerActive: setting.bannerActive,
+            bannerText: setting.bannerText,
+            maintenanceMode: setting.maintenanceMode,
+            maintenanceMsg: setting.maintenanceMsg,
+        });
+    }
+    catch (error) {
+        server.log.error(error);
+        return reply.sendSuccess({
+            logoUrl: '/logo-penagraha.png',
+            bannerActive: false,
+            bannerText: 'Selamat datang di penagraha!',
+            maintenanceMode: false,
+            maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
+        });
+    }
 });
 // Basic Error Handler
 server.setErrorHandler((error, request, reply) => {

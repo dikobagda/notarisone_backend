@@ -18,6 +18,7 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
           phone: true,
           role: true,
           isLocked: true,
+          allowedMenus: true,
           createdAt: true,
         },
         orderBy: { createdAt: 'desc' }
@@ -80,6 +81,7 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
     const schema = z.object({ 
       phone: z.string().optional().nullable(),
       role: z.enum(['NOTARIS', 'PEGAWAI', 'KLIEN']).optional(),
+      allowedMenus: z.array(z.string()).optional().nullable(),
     });
 
     const body = schema.safeParse(request.body);
@@ -98,6 +100,7 @@ const teamRoutes: FastifyPluginAsync = async (fastify) => {
         data: { 
           phone: body.data.phone !== undefined ? body.data.phone : undefined,
           role: body.data.role !== undefined ? body.data.role : undefined,
+          allowedMenus: body.data.allowedMenus !== undefined ? (body.data.allowedMenus as any) : undefined,
         }
       });
 

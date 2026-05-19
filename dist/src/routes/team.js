@@ -18,6 +18,7 @@ const teamRoutes = async (fastify) => {
                     phone: true,
                     role: true,
                     isLocked: true,
+                    allowedMenus: true,
                     createdAt: true,
                 },
                 orderBy: { createdAt: 'desc' }
@@ -74,6 +75,7 @@ const teamRoutes = async (fastify) => {
         const schema = zod_1.z.object({
             phone: zod_1.z.string().optional().nullable(),
             role: zod_1.z.enum(['NOTARIS', 'PEGAWAI', 'KLIEN']).optional(),
+            allowedMenus: zod_1.z.array(zod_1.z.string()).optional().nullable(),
         });
         const body = schema.safeParse(request.body);
         if (!body.success)
@@ -91,6 +93,7 @@ const teamRoutes = async (fastify) => {
                 data: {
                     phone: body.data.phone !== undefined ? body.data.phone : undefined,
                     role: body.data.role !== undefined ? body.data.role : undefined,
+                    allowedMenus: body.data.allowedMenus !== undefined ? body.data.allowedMenus : undefined,
                 }
             });
             return reply.sendSuccess(null, 'Data anggota berhasil diperbarui');

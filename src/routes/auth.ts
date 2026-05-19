@@ -117,7 +117,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Generate stateless Backend JWT
     const token = jwt.sign(
-      { sub: user!.id, tenantId: user!.tenantId, role: user!.role, plan: user!.tenant.subscription },
+      { sub: user!.id, tenantId: user!.tenantId, role: user!.role, plan: user!.tenant.subscription, allowedMenus: user!.allowedMenus },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -132,7 +132,8 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
           name: user!.name, 
           role: user!.role, 
           tenantId: user!.tenantId,
-          plan: user!.tenant.subscription 
+          plan: user!.tenant.subscription,
+          allowedMenus: user!.allowedMenus
         },
         tenant: {
           id: user!.tenant.id,
