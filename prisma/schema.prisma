@@ -513,6 +513,12 @@ model ServiceRequest {
   additionalJobs  String?              @db.Text
   estimatedCost   Decimal?             @db.Decimal(15, 2)
   status          ServiceRequestStatus @default(PENDING)
+  toNotaryStatus  String               @default("PENDING")
+  toNotaryDate    DateTime?
+  toNotaryProof   String?              @db.Text
+  toClientStatus  String               @default("PENDING")
+  toClientDate    DateTime?
+  toClientProof   String?              @db.Text
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 

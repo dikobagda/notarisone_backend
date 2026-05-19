@@ -162,4 +162,34 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
       return reply.sendError('Gagal memperbarui konsultansi: ' + (error as Error).message);
     }
   });
+
+  // PATCH update handover status
+  fastify.patch('/:id/handover', async (request, reply) => {
+    const { id } = request.params as any;
+    const body = request.body as any;
+
+    try {
+      const updateData: any = {};
+      if (body.type === 'CLIENT_TO_NOTARY') {
+        updateData.toNotaryStatus = body.status;
+        updateData.toNotaryDate = body.date ? new Date(body.date) : null;
+        updateData.toNotaryProof = body.proof;
+      } else if (body.type === 'NOTARY_TO_CLIENT') {
+        updateData.toClientStatus = body.status;
+        updateData.toClientDate = body.date ? new Date(body.date) : null;
+        updateData.toClientProof = body.proof;
+      } else {
+        return reply.sendError('Tipe serah terima tidak valid');
+      }
+
+      const updated = await prisma.serviceRequest.update({
+        where: { id },
+        data: updateData
+      });
+      return reply.sendSuccess(updated, 'Serah terima berhasil diperbarui');
+    } catch (error) {
+      console.error(error);
+      return reply.sendError('Gagal memperbarui data serah terima');
+    }
+  });
 }
