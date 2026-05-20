@@ -104,8 +104,8 @@ server.register(libraryRoutes, { prefix: '/api/library' });
 
 // Health Check
 server.get('/', async (request, reply) => {
-  return { 
-    message: 'Welcome to penagraha Backend API',
+  return {
+    message: 'Welcome to Penagraha Backend API',
     status: 'Running',
     documentation: '/health'
   };
@@ -125,7 +125,7 @@ server.get('/api/public/settings', async (request, reply) => {
       return reply.sendSuccess({
         logoUrl: '/logo-penagraha.png',
         bannerActive: false,
-        bannerText: 'Selamat datang di penagraha!',
+        bannerText: 'Selamat datang di Penagraha!',
         maintenanceMode: false,
         maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
       });
@@ -142,7 +142,7 @@ server.get('/api/public/settings', async (request, reply) => {
     return reply.sendSuccess({
       logoUrl: '/logo-penagraha.png',
       bannerActive: false,
-      bannerText: 'Selamat datang di penagraha!',
+      bannerText: 'Selamat datang di Penagraha!',
       maintenanceMode: false,
       maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
     });
@@ -154,7 +154,7 @@ server.setErrorHandler((error: any, request, reply) => {
   // Log full error for debugging
   console.error(`[CRITICAL ERROR] ${request.method} ${request.url}:`, error);
   server.log.error(error);
-  
+
   if (error.validation) {
     reply.status(422).send({
       success: false,
@@ -165,7 +165,7 @@ server.setErrorHandler((error: any, request, reply) => {
   }
 
   // Handle BigInt serialization error specifically if possible
-  const message = error.message?.includes('BigInt') 
+  const message = error.message?.includes('BigInt')
     ? 'Gagal memproses data numerik besar (BigInt). Hubungi pengembang.'
     : 'Terjadi kesalahan sistem internal';
 
@@ -179,7 +179,7 @@ const start = async () => {
   try {
     const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
     await server.listen({ port, host: '0.0.0.0' });
-    console.log(`Server penagraha backend berjalan di port ${port}`);
+    console.log(`Server Penagraha backend berjalan di port ${port}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

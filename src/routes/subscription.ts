@@ -14,11 +14,11 @@ const xenditClient = new Xendit({
 });
 
 const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
-  
+
   // POST /api/subscription/checkout - Create a payment invoice
   fastify.post('/checkout', async (request, reply) => {
     const tenantId = (request as any).tenantId || (request.query as any).tenantId;
-    
+
     if (!tenantId) {
       request.server.log.warn(`[Checkout] Missing Tenant ID on request. URL: ${request.url}`);
       return reply.sendError('Tenant ID wajib disertakan');
@@ -52,7 +52,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       const invoiceData = {
         externalId: requestExternalId,
         amount,
-        description: `Berlangganan penagraha Paket ${body.data.tier}`,
+        description: `Berlangganan Penagraha Paket ${body.data.tier}`,
         payerEmail: owner?.email || 'admin@penagraha.com',
         customer: {
           givenNames: owner?.name || tenant.name,
@@ -75,7 +75,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
           tier: body.data.tier,
         }
       };
-      
+
       console.log(`[Checkout] Sending Invoice request to Xendit for Tenant ${tenantId}:`, JSON.stringify(invoiceData, null, 2));
 
       const xenditInvoice = await xenditClient.Invoice.createInvoice({
@@ -133,9 +133,9 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/subscription/webhook - Simple check for debugging
   fastify.get('/webhook', async (request, reply) => {
-    return reply.send({ 
-      status: 'OK', 
-      message: 'Subscription Webhook is active and waiting for POST requests from Xendit.' 
+    return reply.send({
+      status: 'OK',
+      message: 'Subscription Webhook is active and waiting for POST requests from Xendit.'
     });
   });
 
@@ -147,7 +147,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
 
     const payload = request.body as any;
     const externalId = payload.external_id || payload.id;
-    
+
     // --- DATABASE LOGGING ---
     try {
       await prisma.xenditLog.create({
@@ -175,7 +175,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     console.log(`[Webhook] Raw Payload:`, JSON.stringify(payload, null, 2));
-    
+
     // We're looking for 'PAID' or 'SETTLED' status
     if (!['PAID', 'SETTLED'].includes(payload.status)) {
       console.log(`[Webhook] Ignoring status: ${payload.status}`);
@@ -214,7 +214,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       if (itemName.includes('STARTER')) tier = 'STARTER';
       else if (itemName.includes('PROFESSIONAL')) tier = 'PROFESSIONAL';
       else if (itemName.includes('ENTERPRISE')) tier = 'ENTERPRISE';
-      
+
       if (tier) console.log(`[Webhook] Fallback: Extracted tier ${tier} from item name`);
     }
 
@@ -230,7 +230,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
           console.log(`[Webhook] Fallback: Extracted tier ${tier} from XenditLog`);
         }
       } catch (e) {
-         // ignore
+        // ignore
       }
     }
 
@@ -239,9 +239,9 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
       // Log the structure to help debugging
       console.log(`[Webhook] Inspecting payload keys:`, Object.keys(payload));
       if (payload.metadata) console.log(`[Webhook] Metadata content:`, JSON.stringify(payload.metadata, null, 2));
-      
-      return reply.code(400).send({ 
-        success: false, 
+
+      return reply.code(400).send({
+        success: false,
         message: 'Invalid metadata structure',
         details: { tenantId: !!tenantId, tier: !!tier }
       });
@@ -337,18 +337,18 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/subscription/debug - Raw database status for debugging
   fastify.get('/debug', async (request, reply) => {
     const { tenantId, email, name } = request.query as any;
-    
+
     try {
       let tenant = null;
       if (tenantId) {
-        tenant = await prisma.tenant.findUnique({ 
+        tenant = await prisma.tenant.findUnique({
           where: { id: tenantId },
           include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
         });
       } else if (email) {
-        const user = await prisma.user.findUnique({ 
+        const user = await prisma.user.findUnique({
           where: { email },
-          include: { 
+          include: {
             tenant: {
               include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
             }
@@ -356,7 +356,7 @@ const subscriptionRoutes: FastifyPluginAsync = async (fastify) => {
         });
         tenant = user?.tenant;
       } else if (name) {
-        tenant = await prisma.tenant.findFirst({ 
+        tenant = await prisma.tenant.findFirst({
           where: { name: { contains: name } },
           include: { xenditLogs: { take: 10, orderBy: { createdAt: 'desc' } } }
         });
