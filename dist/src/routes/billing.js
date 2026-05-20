@@ -6,7 +6,7 @@ const prisma_1 = require("../lib/prisma");
 async function billingRoutes(fastify) {
     // GET all invoices for current tenant
     fastify.get('/invoices', async (request, reply) => {
-        const tenantId = request.headers['x-tenant-id'];
+        const tenantId = request.headers['x-tenant-id'] || request.query.tenantId;
         const invoices = await prisma_1.prisma.invoice.findMany({
             where: { tenantId },
             include: {

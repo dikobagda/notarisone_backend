@@ -18,6 +18,7 @@ const deedSchema = zod_1.z.object({
     clientId: zod_1.z.string().min(1, 'Klien wajib dipilih'),
     createdById: zod_1.z.string().min(1, 'Pembuat wajib diisi'),
     targetFinalization: zod_1.z.string().optional().or(zod_1.z.literal('')),
+    deedNumber: zod_1.z.string().optional().nullable().or(zod_1.z.literal('')),
     ppatData: zod_1.z.object({
         nop: zod_1.z.string().optional(),
         luasTanah: zod_1.z.number().optional(),
@@ -118,6 +119,7 @@ const deedRoutes = async (fastify) => {
                 data: {
                     title: body.data.title,
                     type: body.data.type,
+                    deedNumber: body.data.deedNumber !== undefined ? (body.data.deedNumber || null) : undefined,
                     targetFinalization: body.data.targetFinalization ? new Date(body.data.targetFinalization) : undefined,
                 },
             });
@@ -128,13 +130,16 @@ const deedRoutes = async (fastify) => {
                 resource: 'Deed',
                 resourceId: id,
                 payload: {
-                    old: { title: existingDeed.title, type: existingDeed.type },
-                    new: { title: updatedDeed.title, type: updatedDeed.type }
+                    old: { title: existingDeed.title, type: existingDeed.type, deedNumber: existingDeed.deedNumber },
+                    new: { title: updatedDeed.title, type: updatedDeed.type, deedNumber: updatedDeed.deedNumber }
                 },
             });
             return reply.sendSuccess(updatedDeed, 'Data akta berhasil diperbarui');
         }
         catch (error) {
+            if (error.code === 'P2002') {
+                return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+            }
             request.log.error(error);
             return reply.sendError('Gagal memperbarui akta');
         }
@@ -418,13 +423,27 @@ const deedRoutes = async (fastify) => {
             }
             else if (normalizedType === 'scan') {
                 console.log(`[UPLOAD] Routing to SCAN path`);
+                const finalDeedNumber = (deedNumber && deedNumber.trim() !== "") ? deedNumber.trim() : deed.deedNumber;
+                if (!finalDeedNumber || finalDeedNumber.trim() === "") {
+                    return reply.code(400).send({ success: false, message: 'Nomor akta wajib diisi untuk melakukan finalisasi' });
+                }
+                const duplicate = await prisma_1.prisma.deed.findFirst({
+                    where: {
+                        deedNumber: finalDeedNumber,
+                        id: { not: id },
+                        deletedAt: null
+                    }
+                });
+                if (duplicate) {
+                    return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+                }
                 const updateData = {
                     scanPath: gsPath,
                     scanSize: BigInt(filePart.buffer.length)
                 };
-                if (deedNumber && deedNumber.trim() !== "" && deed.status !== 'FINAL') {
-                    console.log(`[UPLOAD] Finalizing deed with number: ${deedNumber}`);
-                    updateData.deedNumber = deedNumber;
+                if (deed.status !== 'FINAL') {
+                    console.log(`[UPLOAD] Finalizing deed with number: ${finalDeedNumber}`);
+                    updateData.deedNumber = finalDeedNumber;
                     updateData.status = 'FINAL';
                 }
                 await prisma_1.prisma.deed.update({
@@ -436,7 +455,7 @@ const deedRoutes = async (fastify) => {
                         data: {
                             tenantId,
                             deedId: id,
-                            repertoriumNumber: deedNumber,
+                            repertoriumNumber: finalDeedNumber,
                             description: `Finalisasi Akta Otomatis: ${deed.title}`
                         }
                     });
@@ -447,7 +466,7 @@ const deedRoutes = async (fastify) => {
                             clientName: client.name,
                             deedTitle: deed.title,
                             deedType: deed.type,
-                            deedNumber: deedNumber
+                            deedNumber: finalDeedNumber
                         }).catch(err => console.error('[EMAIL] Background error:', err));
                     }
                 }
@@ -494,6 +513,9 @@ const deedRoutes = async (fastify) => {
             return reply.sendSuccess({ gcsPath: gsPath, debugType: normalizedType, actionLog }, 'Dokumen berhasil diunggah');
         }
         catch (error) {
+            if (error.code === 'P2002') {
+                return reply.code(409).send({ success: false, message: 'Nomor akta sudah digunakan di akta lain' });
+            }
             request.log.error(error);
             return reply.sendError(`Gagal mengunggah dokumen: ${error.message || 'Terjadi kesalahan sistem'}`);
         }

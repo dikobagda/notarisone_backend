@@ -6,7 +6,7 @@ export default async function billingRoutes(fastify: FastifyInstance) {
   
   // GET all invoices for current tenant
   fastify.get('/invoices', async (request, reply) => {
-    const tenantId = request.headers['x-tenant-id'] as string;
+    const tenantId = (request.headers['x-tenant-id'] as string) || (request.query as any).tenantId;
     
     const invoices = await prisma.invoice.findMany({
       where: { tenantId },
