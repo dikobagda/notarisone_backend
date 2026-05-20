@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -r tsconfig-paths/register src/server.ts",
+    "dev": "NODE_OPTIONS='--max-old-space-size=4096' ts-node -T -r tsconfig-paths/register src/server.ts",
     "generate": "prisma generate",
     "postinstall": "prisma generate",
     "build": "prisma generate && tsc && tsc-alias",

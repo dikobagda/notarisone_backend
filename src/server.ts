@@ -30,6 +30,7 @@ import waarmerkingRoutes from './routes/waarmerking';
 import additionalJobsRoutes from './routes/additional-jobs';
 import serviceRequestRoutes from './routes/service-requests';
 import libraryRoutes from './routes/library';
+import aiRoutes from './routes/ai';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
 import { prisma } from './lib/prisma';
@@ -101,6 +102,7 @@ server.register(waarmerkingRoutes, { prefix: '/api/waarmerking' });
 server.register(additionalJobsRoutes, { prefix: '/api/additional-jobs' });
 server.register(serviceRequestRoutes, { prefix: '/api/service-requests' });
 server.register(libraryRoutes, { prefix: '/api/library' });
+server.register(aiRoutes, { prefix: '/api/ai' });
 
 // Health Check
 server.get('/', async (request, reply) => {
