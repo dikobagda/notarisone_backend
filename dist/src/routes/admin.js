@@ -546,7 +546,8 @@ const adminRoutes = async (fastify) => {
                     bannerText: 'Selamat datang di penagraha!',
                     gcloudPath: 'gs://notarisone-prod-deeds',
                     auth0Domain: 'auth.notarisone.id',
-                    logoUrl: '/logo-penagraha.png' // default asset path
+                    logoUrl: '/logo-penagraha.png', // default asset path
+                    aiAgentActive: true
                 }
             });
             return reply.sendSuccess(setting);
@@ -566,7 +567,8 @@ const adminRoutes = async (fastify) => {
                 bannerText: zod_1.z.string(),
                 gcloudPath: zod_1.z.string().optional(),
                 auth0Domain: zod_1.z.string().optional(),
-                logoUrl: zod_1.z.string()
+                logoUrl: zod_1.z.string(),
+                aiAgentActive: zod_1.z.boolean().optional()
             });
             const body = updateSchema.parse(request.body);
             const existing = await prisma_1.prisma.systemSetting.findUnique({ where: { id: 'SYSTEM' } });
@@ -579,7 +581,8 @@ const adminRoutes = async (fastify) => {
                     bannerText: body.bannerText,
                     logoUrl: body.logoUrl,
                     gcloudPath: body.gcloudPath ?? existing?.gcloudPath ?? 'gs://notarisone-prod-deeds',
-                    auth0Domain: body.auth0Domain ?? existing?.auth0Domain ?? 'auth.notarisone.id'
+                    auth0Domain: body.auth0Domain ?? existing?.auth0Domain ?? 'auth.notarisone.id',
+                    aiAgentActive: body.aiAgentActive ?? existing?.aiAgentActive ?? true
                 },
                 create: {
                     id: 'SYSTEM',
@@ -589,7 +592,8 @@ const adminRoutes = async (fastify) => {
                     bannerText: body.bannerText,
                     logoUrl: body.logoUrl,
                     gcloudPath: body.gcloudPath ?? 'gs://notarisone-prod-deeds',
-                    auth0Domain: body.auth0Domain ?? 'auth.notarisone.id'
+                    auth0Domain: body.auth0Domain ?? 'auth.notarisone.id',
+                    aiAgentActive: body.aiAgentActive ?? true
                 }
             });
             return reply.sendSuccess(updated);

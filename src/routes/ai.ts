@@ -11,6 +11,23 @@ export default async function aiRoutes(fastify: FastifyInstance) {
     }
 
     try {
+      // 1. Periksa setelan global (SystemSetting)
+      const globalSetting = await prisma.systemSetting.findUnique({
+        where: { id: 'SYSTEM' }
+      });
+      if (globalSetting && globalSetting.aiAgentActive === false) {
+        return reply.code(400).send({ success: false, message: 'Asisten AI Penagraha dinonaktifkan secara global oleh platform.' });
+      }
+
+      // 2. Periksa setelan lokal (Tenant)
+      const tenant = await prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { aiEnabled: true }
+      });
+      if (tenant && tenant.aiEnabled === false) {
+        return reply.code(400).send({ success: false, message: 'Asisten AI Penagraha dinonaktifkan untuk kantor Anda.' });
+      }
+
       // Fetch data specifically for this tenant
       const [recentDeeds, recentClients, upcomingAppointments, tenantInfo] = await Promise.all([
         prisma.deed.findMany({

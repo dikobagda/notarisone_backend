@@ -13,12 +13,18 @@ const profileRoutes = async (fastify) => {
         const userId = request.userId;
         if (!userId)
             return reply.sendError('Unauthorized', 401);
-        const user = await prisma_1.prisma.user.findUnique({
-            where: { id: userId },
-            include: { tenant: true }
-        });
+        const [user, systemSetting] = await Promise.all([
+            prisma_1.prisma.user.findUnique({
+                where: { id: userId },
+                include: { tenant: true }
+            }),
+            prisma_1.prisma.systemSetting.findFirst()
+        ]);
         if (!user)
             return reply.sendError('User tidak ditemukan', 404);
+        // Effective AI status = local tenant setting AND global platform setting
+        const globalAiActive = systemSetting?.aiAgentActive ?? true;
+        const effectiveAiEnabled = user.tenant.aiEnabled && globalAiActive;
         return reply.sendSuccess({
             user: {
                 id: user.id,
@@ -32,6 +38,8 @@ const profileRoutes = async (fastify) => {
                 name: user.tenant.name,
                 address: user.tenant.address,
                 subscription: user.tenant.subscription,
+                aiEnabled: effectiveAiEnabled,
+                aiLocalEnabled: user.tenant.aiEnabled, // raw local setting (for settings page toggle display)
             }
         });
     });
@@ -128,6 +136,7 @@ const profileRoutes = async (fastify) => {
         const schema = zod_1.z.object({
             name: zod_1.z.string().min(2, 'Nama kantor minimal 2 karakter').optional(),
             address: zod_1.z.string().optional(),
+            aiEnabled: zod_1.z.boolean().optional(),
         });
         const body = schema.safeParse(request.body);
         if (!body.success) {
@@ -138,6 +147,7 @@ const profileRoutes = async (fastify) => {
             data: {
                 name: body.data.name,
                 address: body.data.address,
+                aiEnabled: body.data.aiEnabled,
             }
         });
         // Audit Log

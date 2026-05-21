@@ -10,12 +10,19 @@ export const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = request.userId;
     if (!userId) return reply.sendError('Unauthorized', 401);
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { tenant: true }
-    });
+    const [user, systemSetting] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        include: { tenant: true }
+      }),
+      prisma.systemSetting.findFirst()
+    ]);
 
     if (!user) return reply.sendError('User tidak ditemukan', 404);
+
+    // Effective AI status = local tenant setting AND global platform setting
+    const globalAiActive = systemSetting?.aiAgentActive ?? true;
+    const effectiveAiEnabled = user.tenant.aiEnabled && globalAiActive;
 
     return reply.sendSuccess({
       user: {
@@ -30,6 +37,8 @@ export const profileRoutes: FastifyPluginAsync = async (fastify) => {
         name: user.tenant.name,
         address: user.tenant.address,
         subscription: user.tenant.subscription,
+        aiEnabled: effectiveAiEnabled,
+        aiLocalEnabled: user.tenant.aiEnabled,  // raw local setting (for settings page toggle display)
       }
     });
   });
@@ -142,6 +151,7 @@ export const profileRoutes: FastifyPluginAsync = async (fastify) => {
     const schema = z.object({
       name: z.string().min(2, 'Nama kantor minimal 2 karakter').optional(),
       address: z.string().optional(),
+      aiEnabled: z.boolean().optional(),
     });
 
     const body = schema.safeParse(request.body);
@@ -154,6 +164,7 @@ export const profileRoutes: FastifyPluginAsync = async (fastify) => {
       data: {
         name: body.data.name,
         address: body.data.address,
+        aiEnabled: body.data.aiEnabled,
       }
     });
 

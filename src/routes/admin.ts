@@ -126,18 +126,90 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // GET platform stats
+  // GET platform stats — comprehensive dashboard overview
   fastify.get('/stats', async (request, reply) => {
-    const tenantCount = await prisma.tenant.count();
-    const userCount = await prisma.user.count();
-    const deedCount = await prisma.deed.count();
+    try {
+      // Core counts
+      const [tenantCount, userCount, deedCount] = await Promise.all([
+        prisma.tenant.count({ where: { deletedAt: null } }),
+        prisma.user.count(),
+        prisma.deed.count(),
+      ]);
+
+      // Tenant status breakdown
+      const [activeTenants, suspendedTenants, trialTenants] = await Promise.all([
+        prisma.tenant.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+        prisma.tenant.count({ where: { status: 'SUSPENDED', deletedAt: null } }),
+        prisma.tenant.count({ where: { status: 'TRIAL', deletedAt: null } }),
+      ]);
+
+      // Subscription tier breakdown
+      const [starterCount, professionalCount, enterpriseCount] = await Promise.all([
+        prisma.tenant.count({ where: { subscription: 'STARTER', deletedAt: null } }),
+        prisma.tenant.count({ where: { subscription: 'PROFESSIONAL', deletedAt: null } }),
+        prisma.tenant.count({ where: { subscription: 'ENTERPRISE', deletedAt: null } }),
+      ]);
+
+      // Recent 5 tenants for quick overview
+      const recentTenants = await prisma.tenant.findMany({
+        where: { deletedAt: null },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          subscription: true,
+          createdAt: true,
+          _count: { select: { users: true, deeds: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      });
+
+      // MRR calculation from subscription plans
+      let mrr = 0;
+      try {
+        const plans = await prisma.subscriptionPlan.findMany();
+        const planPrices = plans.reduce((acc: Record<string, number>, plan: any) => {
+          acc[plan.slug] = Number(plan.price);
+          return acc;
+        }, {} as Record<string, number>);
+
+        const paidTenants = await prisma.tenant.findMany({
+          where: {
+            status: 'ACTIVE',
+            subscription: { in: ['STARTER', 'PROFESSIONAL', 'ENTERPRISE'] },
+            deletedAt: null,
+          },
+        });
+        paidTenants.forEach((t: any) => {
+          mrr += planPrices[t.subscription] || 0;
+        });
+      } catch {
+        // subscriptionPlan table may not exist yet
+      }
 
       return reply.sendSuccess({
-      tenantCount,
-      userCount,
-      deedCount,
-      revenue: 0, // Placeholder
-    });
+        tenantCount,
+        userCount,
+        deedCount,
+        mrr,
+        tenantsByStatus: {
+          active: activeTenants,
+          suspended: suspendedTenants,
+          trial: trialTenants,
+        },
+        tenantsBySubscription: {
+          starter: starterCount,
+          professional: professionalCount,
+          enterprise: enterpriseCount,
+          trial: trialTenants,
+        },
+        recentTenants,
+      });
+    } catch (error) {
+      fastify.log.error(error);
+      return reply.sendError('Gagal mengambil statistik platform');
+    }
   });
 
   // POST Manual Onboarding (Tenant + Notary User)
@@ -595,7 +667,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           bannerText: 'Selamat datang di penagraha!',
           gcloudPath: 'gs://notarisone-prod-deeds',
           auth0Domain: 'auth.notarisone.id',
-          logoUrl: '/logo-penagraha.png' // default asset path
+          logoUrl: '/logo-penagraha.png', // default asset path
+          aiAgentActive: true
         }
       });
       return reply.sendSuccess(setting);
@@ -615,7 +688,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
         bannerText: z.string(),
         gcloudPath: z.string().optional(),
         auth0Domain: z.string().optional(),
-        logoUrl: z.string()
+        logoUrl: z.string(),
+        aiAgentActive: z.boolean().optional()
       });
 
       const body = updateSchema.parse(request.body);
@@ -630,7 +704,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           bannerText: body.bannerText,
           logoUrl: body.logoUrl,
           gcloudPath: body.gcloudPath ?? existing?.gcloudPath ?? 'gs://notarisone-prod-deeds',
-          auth0Domain: body.auth0Domain ?? existing?.auth0Domain ?? 'auth.notarisone.id'
+          auth0Domain: body.auth0Domain ?? existing?.auth0Domain ?? 'auth.notarisone.id',
+          aiAgentActive: body.aiAgentActive ?? existing?.aiAgentActive ?? true
         },
         create: {
           id: 'SYSTEM',
@@ -640,7 +715,8 @@ const adminRoutes: FastifyPluginAsync = async (fastify) => {
           bannerText: body.bannerText,
           logoUrl: body.logoUrl,
           gcloudPath: body.gcloudPath ?? 'gs://notarisone-prod-deeds',
-          auth0Domain: body.auth0Domain ?? 'auth.notarisone.id'
+          auth0Domain: body.auth0Domain ?? 'auth.notarisone.id',
+          aiAgentActive: body.aiAgentActive ?? true
         }
       });
 
