@@ -520,6 +520,39 @@ const deedRoutes = async (fastify) => {
             return reply.sendError(`Gagal mengunggah dokumen: ${error.message || 'Terjadi kesalahan sistem'}`);
         }
     });
+    // PATCH rename attachment
+    fastify.patch('/:id/attachments/:attachmentId', async (request, reply) => {
+        const { id, attachmentId } = request.params;
+        const { name } = request.body;
+        const tenantId = request.body.tenantId || request.query.tenantId;
+        if (!tenantId)
+            return reply.sendError('Tenant ID wajib disertakan');
+        if (!name || name.trim() === '')
+            return reply.sendError('Nama file wajib diisi');
+        try {
+            const deed = await prisma_1.prisma.deed.findFirst({ where: { id, tenantId, deletedAt: null } });
+            if (!deed)
+                return reply.sendError('Akta tidak ditemukan', 404);
+            let attachments = [];
+            if (deed.attachments) {
+                attachments = typeof deed.attachments === 'string' ? JSON.parse(deed.attachments) : deed.attachments;
+            }
+            const attachmentIndex = attachments.findIndex(a => a.id === attachmentId);
+            if (attachmentIndex === -1) {
+                return reply.sendError('Lampiran tidak ditemukan', 404);
+            }
+            attachments[attachmentIndex].name = name;
+            await prisma_1.prisma.deed.update({
+                where: { id },
+                data: { attachments: attachments }
+            });
+            return reply.sendSuccess({ id: attachmentId, name }, 'Nama lampiran berhasil diubah');
+        }
+        catch (error) {
+            request.log.error(error);
+            return reply.sendError('Gagal mengubah nama lampiran');
+        }
+    });
     // POST finalize
     fastify.post('/:id/finalize', async (request, reply) => {
         const { id } = request.params;

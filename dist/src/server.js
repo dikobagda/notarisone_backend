@@ -33,6 +33,7 @@ const waarmerking_1 = __importDefault(require("./routes/waarmerking"));
 const additional_jobs_1 = __importDefault(require("./routes/additional-jobs"));
 const service_requests_1 = __importDefault(require("./routes/service-requests"));
 const library_1 = __importDefault(require("./routes/library"));
+const ai_1 = __importDefault(require("./routes/ai"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cors_1 = __importDefault(require("@fastify/cors"));
 const prisma_1 = require("./lib/prisma");
@@ -92,10 +93,11 @@ server.register(waarmerking_1.default, { prefix: '/api/waarmerking' });
 server.register(additional_jobs_1.default, { prefix: '/api/additional-jobs' });
 server.register(service_requests_1.default, { prefix: '/api/service-requests' });
 server.register(library_1.default, { prefix: '/api/library' });
+server.register(ai_1.default, { prefix: '/api/ai' });
 // Health Check
 server.get('/', async (request, reply) => {
     return {
-        message: 'Welcome to penagraha Backend API',
+        message: 'Welcome to Penagraha Backend API',
         status: 'Running',
         documentation: '/health'
     };
@@ -113,7 +115,7 @@ server.get('/api/public/settings', async (request, reply) => {
             return reply.sendSuccess({
                 logoUrl: '/logo-penagraha.png',
                 bannerActive: false,
-                bannerText: 'Selamat datang di penagraha!',
+                bannerText: 'Selamat datang di Penagraha!',
                 maintenanceMode: false,
                 maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
             });
@@ -131,7 +133,7 @@ server.get('/api/public/settings', async (request, reply) => {
         return reply.sendSuccess({
             logoUrl: '/logo-penagraha.png',
             bannerActive: false,
-            bannerText: 'Selamat datang di penagraha!',
+            bannerText: 'Selamat datang di Penagraha!',
             maintenanceMode: false,
             maintenanceMsg: 'Kami sedang melakukan pemeliharaan sistem rutin...',
         });
@@ -163,7 +165,7 @@ const start = async () => {
     try {
         const port = process.env.PORT ? parseInt(process.env.PORT) : 3001;
         await server.listen({ port, host: '0.0.0.0' });
-        console.log(`Server penagraha backend berjalan di port ${port}`);
+        console.log(`Server Penagraha backend berjalan di port ${port}`);
     }
     catch (err) {
         server.log.error(err);

@@ -80,6 +80,22 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
         }
       });
 
+      // Audit Log
+      await fastify.logAudit({
+        tenantId: request.tenantId || tenantId,
+        userId: request.userId,
+        action: 'CREATE_SERVICE_REQUEST',
+        resource: 'ServiceRequest',
+        resourceId: newRequest.id,
+        payload: {
+          clientName: newRequest.clientName,
+          clientPhone: newRequest.clientPhone,
+          serviceCategory: newRequest.serviceCategory,
+          estimatedCost: newRequest.estimatedCost,
+          description: newRequest.description
+        }
+      });
+
       return reply.sendSuccess(newRequest, 'Konsultansi berhasil disimpan');
     } catch (error) {
       console.error(error);
@@ -97,6 +113,20 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
         where: { id },
         data: { status }
       });
+
+      // Audit Log
+      await fastify.logAudit({
+        tenantId: updated.tenantId,
+        userId: request.userId,
+        action: 'UPDATE_SERVICE_REQUEST_STATUS',
+        resource: 'ServiceRequest',
+        resourceId: updated.id,
+        payload: {
+          clientName: updated.clientName,
+          status: updated.status
+        }
+      });
+
       return reply.sendSuccess(updated, 'Status berhasil diperbarui');
     } catch (error) {
       return reply.sendError('Gagal memperbarui status');
@@ -156,6 +186,22 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           estimatedCost: body.estimatedCost,
         }
       });
+
+      // Audit Log
+      await fastify.logAudit({
+        tenantId: updated.tenantId,
+        userId: request.userId,
+        action: 'UPDATE_SERVICE_REQUEST',
+        resource: 'ServiceRequest',
+        resourceId: updated.id,
+        payload: {
+          clientName: updated.clientName,
+          clientPhone: updated.clientPhone,
+          serviceCategory: updated.serviceCategory,
+          estimatedCost: updated.estimatedCost
+        }
+      });
+
       return reply.sendSuccess(updated, 'Konsultansi berhasil diperbarui');
     } catch (error) {
       console.error(error);
@@ -186,6 +232,22 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
         where: { id },
         data: updateData
       });
+
+      // Audit Log
+      await fastify.logAudit({
+        tenantId: updated.tenantId,
+        userId: request.userId,
+        action: 'UPDATE_SERVICE_REQUEST_HANDOVER',
+        resource: 'ServiceRequest',
+        resourceId: updated.id,
+        payload: {
+          clientName: updated.clientName,
+          type: body.type,
+          status: body.status,
+          date: body.date
+        }
+      });
+
       return reply.sendSuccess(updated, 'Serah terima berhasil diperbarui');
     } catch (error) {
       console.error(error);
