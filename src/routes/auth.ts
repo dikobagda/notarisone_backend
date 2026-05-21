@@ -303,6 +303,7 @@ export const authApiRoutes: FastifyPluginAsync = async (fastify) => {
             password: hashedPassword,
             role: invite.role,
             tenantId: invite.tenantId,
+            allowedMenus: invite.allowedMenus ?? undefined,
           }
         });
 
