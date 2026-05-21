@@ -28,10 +28,10 @@ const tenantTeamRoutes: FastifyPluginAsync = async (fastify) => {
       email: z.string().email('Email tidak valid'),
       phone: z.string().optional(),
       role: z.enum(['NOTARIS', 'PEGAWAI', 'KLIEN']).default('PEGAWAI'),
+      allowedMenus: z.array(z.string()).optional().nullable(),
     });
 
     const body = inviteSchema.safeParse(request.body);
-    console.log('[DEBUG] Invite Request Body:', JSON.stringify(request.body, null, 2));
     if (!body.success) return reply.sendError(body.error.issues[0].message);
 
     const { tenantId } = request.query as { tenantId: string };
@@ -55,6 +55,11 @@ const tenantTeamRoutes: FastifyPluginAsync = async (fastify) => {
       const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
       if (!tenant) return reply.sendError('Kantor tidak ditemukan');
 
+      // Only store allowedMenus for PEGAWAI role
+      const allowedMenus = body.data.role === 'PEGAWAI' && body.data.allowedMenus?.length
+        ? body.data.allowedMenus
+        : null;
+
       const invite = await prisma.tenantTeams.create({
         data: {
           tenantId,
@@ -62,7 +67,8 @@ const tenantTeamRoutes: FastifyPluginAsync = async (fastify) => {
           phone: body.data.phone,
           role: body.data.role,
           token,
-          expiresAt
+          expiresAt,
+          allowedMenus: allowedMenus as any,
         }
       });
 

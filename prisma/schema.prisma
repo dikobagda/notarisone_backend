@@ -38,17 +38,18 @@ model Tenant {
 }
 
 model TenantTeams {
-  id         String    @id @default(cuid())
-  tenantId   String
-  email      String
-  role       UserRole  @default(PEGAWAI)
-  token      String    @unique
-  expiresAt  DateTime
-  acceptedAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  phone      String?
-  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  id           String    @id @default(cuid())
+  tenantId     String
+  email        String
+  role         UserRole  @default(PEGAWAI)
+  token        String    @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  phone        String?
+  allowedMenus Json?     // Menu access rights preset at invite time
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId])
 }
