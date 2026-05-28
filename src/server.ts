@@ -29,8 +29,11 @@ import notificationRoutes from './routes/notifications';
 import waarmerkingRoutes from './routes/waarmerking';
 import additionalJobsRoutes from './routes/additional-jobs';
 import serviceRequestRoutes from './routes/service-requests';
+import serviceFeeRoutes from './routes/service-fees';
 import libraryRoutes from './routes/library';
 import aiRoutes from './routes/ai';
+import requiredDocumentsRoutes from './routes/required-documents';
+import deedTypesRoutes from './routes/deed-types';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
 import { prisma } from './lib/prisma';
@@ -101,8 +104,11 @@ server.register(notificationRoutes, { prefix: '/api/notifications' });
 server.register(waarmerkingRoutes, { prefix: '/api/waarmerking' });
 server.register(additionalJobsRoutes, { prefix: '/api/additional-jobs' });
 server.register(serviceRequestRoutes, { prefix: '/api/service-requests' });
+server.register(serviceFeeRoutes, { prefix: '/api/service-fees' });
 server.register(libraryRoutes, { prefix: '/api/library' });
 server.register(aiRoutes, { prefix: '/api/ai' });
+server.register(requiredDocumentsRoutes, { prefix: '/api/required-documents' });
+server.register(deedTypesRoutes, { prefix: '/api/deed-types' });
 
 // Health Check
 server.get('/', async (request, reply) => {

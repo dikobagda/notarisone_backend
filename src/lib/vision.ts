@@ -19,7 +19,15 @@ export interface KtpExtraction {
   dob: string;
   gender: string;
   maritalStatus: string;
-  address: string;
+  pekerjaan: string;
+  address: string;     // composed fallback
+  street: string;
+  rt: string;
+  rw: string;
+  kelurahan: string;
+  kecamatan: string;
+  kota: string;
+  provinsi: string;
   rawVisionText?: string;
   ktpPath?: string;
 }
@@ -46,10 +54,55 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
   
   // 1. Isolate strict values by stripping all known KTP labels from the beginning of lines
   let values: string[] = [];
-  const labelRegex = /^(?:NAMA|TEMPAT\/TGL LAHIR|TEMPAT|TGL|LAHIR|ALAMAT|RT[\s\/]*RW|RT|RW|KEL\/DESA|KELURAHAN|KEL|KECAMATAN|KEC|JENIS KELAMIN|KELAMIN|GOL\.?\s*DARAH|GOL|AGAMA|STATUS PERKAWINAN|STATUS|PEKERJAAN|KEWARGANEGARAAN|WARGA NEGARA|BERLAKU HINGGA|BERLAKU|PROVINSI(.*)|KOTA(.*)|KABUPATEN(.*)|NIK)[\s\:\;]*/i;
+  // NOTE: KOTA/KABUPATEN/PROVINSI intentionally excluded here — handled separately below
+  const labelRegex = /^(?:NAMA|TEMPAT\/TGL LAHIR|TEMPAT|TGL|LAHIR|ALAMAT|RT[\s\/]*RW|RT|RW|KEL\/DESA|KELURAHAN|KEL|KECAMATAN|KEC|JENIS KELAMIN|KELAMIN|GOL\.?\s*DARAH|GOL|AGAMA|STATUS PERKAWINAN|STATUS|PEKERJAAN|KEWARGANEGARAAN|WARGA NEGARA|BERLAKU HINGGA|BERLAKU|NIK)[\s\:\;]*/i;
+
+  let kota = '';
+  let provinsi = '';
+  // State flags for when OCR splits "KOTA" and "JAKARTA BARAT" onto separate lines
+  let pendingKota = false;
+  let pendingProvinsi = false;
 
   for (let line of lines) {
-      // Strip labels
+      // ── Handle continuation of a split label from previous line ──
+      if (pendingKota) {
+        if (!kota) kota = line.trim();
+        pendingKota = false;
+        continue;
+      }
+      if (pendingProvinsi) {
+        if (!provinsi) provinsi = line.trim();
+        pendingProvinsi = false;
+        continue;
+      }
+
+      // ── Detect KOTA/KABUPATEN inline: "KOTA JAKARTA BARAT" ──
+      const kotaMatch = line.match(/^(?:KOTA|KABUPATEN)\s+(.+)/);
+      if (kotaMatch) {
+        if (!kota) kota = kotaMatch[1].trim();
+        continue; // skip — don't push to values
+      }
+
+      // ── Detect standalone KOTA/KABUPATEN label (next line will be the city name) ──
+      if (line.match(/^(?:KOTA|KABUPATEN)[\s:;]*$/)) {
+        pendingKota = true;
+        continue;
+      }
+
+      // ── Detect PROVINSI inline: "PROVINSI DKI JAKARTA" ──
+      const provinsiMatch = line.match(/^PROVINSI\s+(.+)/);
+      if (provinsiMatch) {
+        if (!provinsi) provinsi = provinsiMatch[1].trim();
+        continue; // skip — don't push to values
+      }
+
+      // ── Detect standalone PROVINSI label (next line will be the province name) ──
+      if (line.match(/^PROVINSI[\s:;]*$/)) {
+        pendingProvinsi = true;
+        continue;
+      }
+
+      // Strip known field labels
       line = line.replace(labelRegex, '').trim();
       // Strip leading colons that might have been detached from labels
       line = line.replace(/^[\:\;]+/, '').trim();
@@ -120,7 +173,8 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
           matched = true;
       }
       // Job
-      else if (!job && v.match(/KARYAWAN|SWASTA|WIRASWASTA|PELAJAR|MENGURUS|PEGAWAI|TENTARA|POLISI|GURU|TANI|DAGANG/)) {
+      else if (!job && v.match(/KARYAWAN|SWASTA|WIRASWASTA|PELAJAR|MENGURUS RUMAH|MAHASISWA|PEGAWAI|TENTARA|POLISI|GURU|PETANI|PEDAGANG|BURUH|DOKTER|PERAWAT|TNI|PNS/)) {
+          job = v; // store the actual job title
           matched = true;
       }
       // Nationality
@@ -160,16 +214,29 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
       alamat = unclassified[1];
   }
 
-  // Build final address logically with clean comma separation
+  // 4. Parse RT/RW into separate values
+  let rt = '';
+  let rw = '';
+  if (rtrw) {
+    const rtRwMatch = rtrw.match(/(\d{1,3})\s*[\/\s]\s*(\d{1,3})/);
+    if (rtRwMatch) {
+      rt = rtRwMatch[1].padStart(3, '0');
+      rw = rtRwMatch[2].padStart(3, '0');
+    } else {
+      // Single value — assume it's RT
+      rt = rtrw.trim().padStart(3, '0');
+    }
+  }
+
+  // 5. Build legacy address string for backward-compat
   const addressParts: string[] = [];
   if (alamat) addressParts.push(alamat);
   if (rtrw) addressParts.push(`RT/RW ${rtrw}`);
   if (kelDesa) addressParts.push(`KEL. ${kelDesa}`);
   if (kecamatan) addressParts.push(`KEC. ${kecamatan}`);
+  const address = addressParts.join(', ');
 
-  let address = addressParts.join(', ');
-
-  // 4. Handle GCS Upload
+  // 6. Handle GCS Upload
   let ktpPath = '';
   try {
       const fileName = `clients/ktp/${Date.now()}_${nik || 'unknown'}.jpg`;
@@ -185,7 +252,15 @@ export async function extractKtpData(imageBuffer: Buffer): Promise<KtpExtraction
     dob: dob,
     gender: gender,
     maritalStatus: status,
+    pekerjaan: job.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
     address: address.trim().toUpperCase(),
+    street: alamat.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
+    rt,
+    rw,
+    kelurahan: kelDesa.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
+    kecamatan: kecamatan.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
+    kota: kota.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
+    provinsi: provinsi.replace(/[:\-|!.;]/g, '').trim().toUpperCase(),
     rawVisionText: fullTextResult,
     ktpPath: ktpPath
   };

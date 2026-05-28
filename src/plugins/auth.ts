@@ -24,6 +24,7 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
     if (
       request.url === '/health' || 
       request.url.startsWith('/public') || 
+      request.url.startsWith('/api/public') || 
       request.url.startsWith('/api/auth') || 
       request.url.startsWith('/api/ocr') ||
       request.url.startsWith('/api/backauth') ||
@@ -33,6 +34,23 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       request.url.startsWith('/api/subscription/debug') ||
       request.url.startsWith('/api/google/save-tokens')
     ) {
+      return;
+    }
+
+    // Bypass public GET requests for master data (required-documents, additional-jobs, service-fees, deed-types)
+    const isGetRequiredDocs = request.url.startsWith('/api/required-documents') && request.method === 'GET';
+    const isGetAdditionalJobs = request.url.startsWith('/api/additional-jobs') && request.method === 'GET';
+    const isGetServiceFees = request.url.startsWith('/api/service-fees') && request.method === 'GET';
+    const isGetDeedTypes = request.url.startsWith('/api/deed-types') && request.method === 'GET';
+
+    console.log(`[AUTH BYPASS DEBUG] url: ${request.url}, method: ${request.method}, docs: ${isGetRequiredDocs}, jobs: ${isGetAdditionalJobs}, fees: ${isGetServiceFees}, deedTypes: ${isGetDeedTypes}`);
+
+    if (isGetRequiredDocs || isGetAdditionalJobs || isGetServiceFees || isGetDeedTypes) {
+      const query = request.query as { tenantId?: string };
+      console.log(`[AUTH BYPASS DEBUG] Query:`, query);
+      if (query.tenantId) {
+        request.tenantId = query.tenantId;
+      }
       return;
     }
 
@@ -57,6 +75,7 @@ const authPlugin: FastifyPluginAsync = async (fastify: FastifyInstance) => {
       });
 
       if (!user) {
+        request.server.log.error(`[AUTH DIAGNOSTIC] User not found: sub=${userId}, email=${decoded.email || decoded.user?.email}, decoded=${JSON.stringify(decoded)}`);
         return reply.code(403).send({ error: 'User tidak ditemukan' });
       }
 

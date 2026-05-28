@@ -34,6 +34,8 @@ export default async function billingRoutes(fastify: FastifyInstance) {
         description: z.string(),
         amount: z.number(),
         isTaxable: z.boolean(),
+        taxType: z.string().optional(),
+        taxRate: z.number().optional(),
       })),
     });
 
@@ -41,9 +43,10 @@ export default async function billingRoutes(fastify: FastifyInstance) {
     
     // Calculate totals & taxes
     const subtotal = body.items.reduce((sum, item) => sum + item.amount, 0);
-    const taxAmount = body.items
-      .filter(i => i.isTaxable)
-      .reduce((sum, item) => sum + (item.amount * 0.11), 0); // PPN 11%
+    const taxAmount = body.items.reduce((sum, item) => {
+      const rate = item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0);
+      return sum + (item.amount * rate);
+    }, 0);
     const totalAmount = subtotal + taxAmount;
 
     const invoice = await prisma.invoice.create({
@@ -61,6 +64,8 @@ export default async function billingRoutes(fastify: FastifyInstance) {
             description: item.description,
             unitPrice: item.amount,
             taxable: item.isTaxable,
+            taxType: item.taxType || (item.isTaxable ? 'PPN' : 'NONE'),
+            taxRate: item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0),
           })),
         },
       },
@@ -148,6 +153,8 @@ export default async function billingRoutes(fastify: FastifyInstance) {
         description: z.string(),
         amount: z.number(),
         isTaxable: z.boolean(),
+        taxType: z.string().optional(),
+        taxRate: z.number().optional(),
       })).optional(),
     });
 
@@ -173,14 +180,17 @@ export default async function billingRoutes(fastify: FastifyInstance) {
             description: item.description,
             unitPrice: item.amount,
             taxable: item.isTaxable,
+            taxType: item.taxType || (item.isTaxable ? 'PPN' : 'NONE'),
+            taxRate: item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0),
           })),
         });
 
         // Recalculate
         subtotal = body.items.reduce((sum, item) => sum + item.amount, 0);
-        taxAmount = body.items
-          .filter(i => i.isTaxable)
-          .reduce((sum, item) => sum + (item.amount * 0.11), 0);
+        taxAmount = body.items.reduce((sum, item) => {
+          const rate = item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0);
+          return sum + (item.amount * rate);
+        }, 0);
         totalAmount = subtotal + taxAmount;
       }
 

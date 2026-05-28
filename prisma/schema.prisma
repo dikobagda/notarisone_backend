@@ -35,6 +35,9 @@ model Tenant {
   bankAccounts    BankAccount[]
   libraryItems    LibraryItem[]
   aiEnabled       Boolean            @default(true)
+  serviceFees     ServiceFeeMaster[]
+  requiredDocuments RequiredDocumentMaster[]
+  deedTypes       DeedTypeMaster[]
 }
 
 model TenantTeams {
@@ -89,11 +92,19 @@ model Client {
   title              String?
   gender             String?
   maritalStatus      String?
+  pekerjaan          String?
   nik                String
   npwp               String?
   pob                String?
   dob                String?
-  address            String
+  address            String?
+  street             String?
+  rt                 String?
+  rw                 String?
+  kelurahan          String?
+  kecamatan          String?
+  kota               String?
+  provinsi           String?
   phone              String?
   email              String?
   ktpPath            String?
@@ -282,6 +293,8 @@ model InvoiceItem {
   quantity    Int      @default(1)
   unitPrice   Decimal  @db.Decimal(15, 2)
   taxable     Boolean  @default(true)
+  taxType     String   @default("NONE")
+  taxRate     Decimal  @default(0.0) @db.Decimal(5, 2)
   createdAt   DateTime @default(now())
   invoice     Invoice  @relation(fields: [invoiceId], references: [id])
 
@@ -524,6 +537,7 @@ model ServiceRequest {
   toClientProof   String?              @db.Text
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+  subCategory     String?
 
   client          Client?              @relation(fields: [clientId], references: [id])
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
@@ -604,3 +618,43 @@ model SystemSetting {
   aiAgentActive    Boolean  @default(true)
   updatedAt        DateTime @updatedAt
 }
+
+model ServiceFeeMaster {
+  id        String   @id @default(cuid())
+  tenantId  String
+  category  String   // 'NOTARIAL', 'PPAT', 'WAARMARKING', 'LEGALISASI'
+  price     Decimal  @db.Decimal(15, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId])
+}
+
+model RequiredDocumentMaster {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?  @db.Text
+  category    String   // 'ALL', 'AKTA', 'PPAT', 'NON_AKTA'
+  isRequired  Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId])
+}
+
+model DeedTypeMaster {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  category  String   // 'NOTARY' or 'PPAT'
+  code      String   // E.g., 'PENDIRIAN_PT', 'AJB', etc.
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  @@index([tenantId])
+}
+

@@ -1,4 +1,4 @@
-
+import 'dotenv/config';
 import { prisma } from './src/lib/prisma';
 import { 
   startOfMonth, 

@@ -73,6 +73,7 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           clientPhone: body.clientPhone,
           description: body.description,
           serviceCategory: body.serviceCategory,
+          subCategory: body.subCategory,
           documents: body.documents,
           additionalJobs: body.additionalJobs,
           estimatedCost: body.estimatedCost,
@@ -181,6 +182,7 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           clientPhone: body.clientPhone,
           description: body.description,
           serviceCategory: body.serviceCategory,
+          subCategory: body.subCategory,
           documents: body.documents,
           additionalJobs: body.additionalJobs,
           estimatedCost: body.estimatedCost,
@@ -216,16 +218,54 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
 
     try {
       const updateData: any = {};
+      
+      if (body.documents) {
+        updateData.documents = body.documents;
+        
+        const docs = Object.entries(body.documents);
+        const totalDocs = docs.length;
+        
+        // Recalculate toNotaryStatus
+        const receivedDocsCount = docs.filter(([_, val]: [string, any]) => val?.checked).length;
+        if (receivedDocsCount === 0) {
+          updateData.toNotaryStatus = 'PENDING';
+        } else if (receivedDocsCount === totalDocs) {
+          updateData.toNotaryStatus = 'RECEIVED';
+        } else {
+          updateData.toNotaryStatus = 'IN_PROGRESS';
+        }
+
+        // Recalculate toClientStatus
+        const returnedDocsCount = docs.filter(([_, val]: [string, any]) => val?.returned).length;
+        if (returnedDocsCount === 0) {
+          updateData.toClientStatus = 'PENDING';
+        } else if (returnedDocsCount === totalDocs) {
+          updateData.toClientStatus = 'RECEIVED';
+        } else {
+          updateData.toClientStatus = 'IN_PROGRESS';
+        }
+      }
+
       if (body.type === 'CLIENT_TO_NOTARY') {
-        updateData.toNotaryStatus = body.status;
-        updateData.toNotaryDate = body.date ? new Date(body.date) : null;
-        updateData.toNotaryProof = body.proof;
+        if (body.status !== undefined) updateData.toNotaryStatus = body.status;
+        if (body.date !== undefined) updateData.toNotaryDate = body.date ? new Date(body.date) : null;
+        if (body.proof !== undefined) updateData.toNotaryProof = body.proof;
       } else if (body.type === 'NOTARY_TO_CLIENT') {
-        updateData.toClientStatus = body.status;
-        updateData.toClientDate = body.date ? new Date(body.date) : null;
-        updateData.toClientProof = body.proof;
-      } else {
+        if (body.status !== undefined) updateData.toClientStatus = body.status;
+        if (body.date !== undefined) updateData.toClientDate = body.date ? new Date(body.date) : null;
+        if (body.proof !== undefined) updateData.toClientProof = body.proof;
+      } else if (!body.documents) {
         return reply.sendError('Tipe serah terima tidak valid');
+      }
+
+      // If fully received/returned, set fallback dates
+      if (body.documents) {
+        if (updateData.toNotaryStatus === 'RECEIVED' && !updateData.toNotaryDate) {
+          updateData.toNotaryDate = new Date();
+        }
+        if (updateData.toClientStatus === 'RECEIVED' && !updateData.toClientDate) {
+          updateData.toClientDate = new Date();
+        }
       }
 
       const updated = await prisma.serviceRequest.update({
@@ -242,9 +282,9 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
         resourceId: updated.id,
         payload: {
           clientName: updated.clientName,
-          type: body.type,
-          status: body.status,
-          date: body.date
+          type: body.type || 'PROGRESSIVE',
+          status: body.status || 'UPDATED',
+          date: body.date || new Date().toISOString()
         }
       });
 
