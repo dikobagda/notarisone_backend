@@ -45,13 +45,36 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
       });
       
       console.log(`[DEBUG] Found ${deeds.length} deeds for tenant ${tenantId}`);
+
+      // Get all active delete request notifications for this tenant
+      const activeDeleteRequests = await prisma.notification.findMany({
+        where: {
+          tenantId,
+          type: 'URGENT',
+          isRead: false
+        }
+      });
+
+      const deleteRequestMap = new Map<string, string>();
+      activeDeleteRequests.forEach((notif: any) => {
+        if (notif.actionUrl && notif.actionUrl.startsWith('/dashboard/')) {
+          const match = notif.actionUrl.match(/approveDelete=([^&]+)/);
+          if (match && match[1]) {
+            deleteRequestMap.set(match[1], notif.id);
+          }
+        }
+      });
       
       // FOOLPROOF: Recursive BigInt to Number conversion before sending
       const safeDeeds = JSON.parse(
         JSON.stringify(deeds, (key, value) =>
           typeof value === 'bigint' ? Number(value) : value
         )
-      );
+      ).map((deed: any) => ({
+        ...deed,
+        deleteRequested: deleteRequestMap.has(deed.id),
+        deleteRequestNotificationId: deleteRequestMap.get(deed.id) || null
+      }));
       
       return reply.sendSuccess(safeDeeds);
     } catch (error) {
@@ -531,7 +554,8 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
           name: filePart.filename, 
           path: gsPath, 
           size: filePart.buffer.length,
-          uploadedAt: new Date().toISOString() 
+          uploadedAt: new Date().toISOString(),
+          category: normalizedType
         });
         
         await prisma.deed.update({
@@ -707,12 +731,15 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // DELETE a deed (Soft delete)
+  // DELETE a deed (Direct delete - strictly NOTARIS role)
   fastify.delete('/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
     const { tenantId } = request.query as { tenantId: string };
 
     if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
+    if (request.role !== 'NOTARIS') {
+      return reply.sendError('Penghapusan akta memerlukan approval dari Notaris.', 403);
+    }
 
     try {
       const deed = await prisma.deed.findFirst({
@@ -741,6 +768,229 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
     } catch (error) {
       console.error('Delete deed error:', error);
       return reply.sendError('Gagal menghapus akta');
+    }
+  });
+
+  // POST /api/deeds/:id/request-delete - Request deletion (PEGAWAI role)
+  fastify.post('/:id/request-delete', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { tenantId } = request.query as { tenantId: string };
+
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
+
+    try {
+      const deed = await prisma.deed.findFirst({
+        where: { id, tenantId, deletedAt: null }
+      });
+
+      if (!deed) {
+        return reply.sendError('Akta tidak ditemukan atau sudah dihapus', 404);
+      }
+
+      // Check if delete request already exists (In-memory filter to prevent MySQL Collation mix error)
+      const tenantNotifications = await prisma.notification.findMany({
+        where: {
+          tenantId,
+          type: 'URGENT',
+          isRead: false
+        }
+      });
+
+      const existingNotif = tenantNotifications.find((notif: any) => 
+        notif.actionUrl && notif.actionUrl.includes(`approveDelete=${id}`)
+      );
+
+      if (existingNotif) {
+        return reply.sendError('Permintaan penghapusan akta ini sudah dikirim sebelumnya dan sedang menunggu persetujuan.', 400);
+      }
+
+      // Identify page based on deed type
+      const PPAT_TYPES = [
+        "AJB", "HIBAH", "TUKAR_MENUKAR", "INBRENG", "APHB", "APHT", "APHT_NOVASI", "SKMHT", "HGB", "HGU", "HP",
+        "PPAT"
+      ];
+      const pageRoute = PPAT_TYPES.includes(deed.type) ? 'ppat' : 'deeds';
+      const actionUrl = `/dashboard/${pageRoute}?approveDelete=${id}`;
+
+      // Get requester user details
+      const requester = await prisma.user.findUnique({
+        where: { id: request.userId }
+      });
+      const requesterName = requester?.name || 'Pegawai';
+
+      // Find all Notaries in the tenant
+      const notaries = await prisma.user.findMany({
+        where: {
+          tenantId,
+          role: 'NOTARIS',
+          deletedAt: null
+        }
+      });
+
+      if (notaries.length === 0) {
+        return reply.sendError('Tidak ditemukan Notaris di kantor ini untuk menyetujui permintaan.', 404);
+      }
+
+      // Create notifications for all Notaries
+      await Promise.all(
+        notaries.map((notary: any) =>
+          prisma.notification.create({
+            data: {
+              tenantId,
+              userId: notary.id,
+              title: 'Persetujuan Penghapusan Akta',
+              description: `${requesterName} meminta persetujuan untuk menghapus akta "${deed.title}".`,
+              type: 'URGENT',
+              actionUrl,
+            }
+          })
+        )
+      );
+
+      // Log Audit for requesting deletion
+      await fastify.logAudit({
+        tenantId,
+        userId: request.userId,
+        action: 'REQUEST_DELETE_DEED',
+        resource: 'Deed',
+        resourceId: id,
+        payload: { title: deed.title, type: deed.type, requestedBy: requesterName },
+      });
+
+      return reply.sendSuccess({ pendingApproval: true }, 'Permintaan penghapusan akta berhasil dikirim ke Notaris untuk disetujui');
+    } catch (error) {
+      console.error('Request delete deed error:', error);
+      return reply.sendError('Gagal mengirimkan permintaan penghapusan');
+    }
+  });
+
+  // POST /api/deeds/:id/approve-delete - Approve and execute deletion (NOTARIS role only)
+  fastify.post('/:id/approve-delete', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { tenantId } = request.query as { tenantId: string };
+
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
+    if (request.role !== 'NOTARIS') {
+      return reply.sendError('Hanya Notaris yang dapat menyetujui penghapusan akta', 403);
+    }
+
+    try {
+      const deed = await prisma.deed.findFirst({
+        where: { id, tenantId, deletedAt: null }
+      });
+
+      if (!deed) {
+        return reply.sendError('Akta tidak ditemukan atau sudah dihapus', 404);
+      }
+
+      // Delete the deed
+      await prisma.deed.delete({
+        where: { id }
+      });
+
+      // Mark related deletion notifications as read (In-memory filter to prevent MySQL Collation mix error)
+      const relatedNotifications = await prisma.notification.findMany({
+        where: {
+          tenantId,
+          isRead: false
+        }
+      });
+
+      const targetNotifIds = relatedNotifications
+        .filter((n: any) => n.actionUrl && n.actionUrl.includes(`approveDelete=${id}`))
+        .map((n: any) => n.id);
+
+      if (targetNotifIds.length > 0) {
+        await prisma.notification.updateMany({
+          where: {
+            id: { in: targetNotifIds }
+          },
+          data: { isRead: true }
+        });
+      }
+
+      // Log Audit for approving deletion
+      await fastify.logAudit({
+        tenantId,
+        userId: request.userId,
+        action: 'DELETE_DEED',
+        resource: 'Deed',
+        resourceId: id,
+        payload: { title: deed.title, type: deed.type, approvedBy: request.userId },
+      });
+
+      return reply.sendSuccess(null, 'Akta berhasil disetujui dan dihapus');
+    } catch (error) {
+      console.error('Approve delete deed error:', error);
+      return reply.sendError('Gagal menyetujui penghapusan akta');
+    }
+  });
+
+  // POST /api/deeds/:id/reject-delete - Reject deletion request (NOTARIS role only)
+  fastify.post('/:id/reject-delete', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { tenantId } = request.query as { tenantId: string };
+
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
+    if (request.role !== 'NOTARIS') {
+      return reply.sendError('Hanya Notaris yang dapat menolak penghapusan akta', 403);
+    }
+
+    try {
+      const deed = await prisma.deed.findFirst({
+        where: { id, tenantId, deletedAt: null }
+      });
+
+      if (!deed) {
+        return reply.sendError('Akta tidak ditemukan atau sudah dihapus', 404);
+      }
+
+      // Mark related deletion notifications as read (In-memory filter to prevent MySQL Collation mix error)
+      const relatedNotifications = await prisma.notification.findMany({
+        where: {
+          tenantId,
+          isRead: false
+        }
+      });
+
+      const targetNotifIds = relatedNotifications
+        .filter((n: any) => n.actionUrl && n.actionUrl.includes(`approveDelete=${id}`))
+        .map((n: any) => n.id);
+
+      if (targetNotifIds.length > 0) {
+        await prisma.notification.updateMany({
+          where: {
+            id: { in: targetNotifIds }
+          },
+          data: { isRead: true }
+        });
+      }
+
+      // Send WARNING notification back to the deed's creator
+      await prisma.notification.create({
+        data: {
+          tenantId,
+          userId: deed.createdById,
+          title: 'Permintaan Penghapusan Ditolak',
+          description: `Permintaan penghapusan akta "${deed.title}" ditolak oleh Notaris.`,
+          type: 'WARNING',
+        }
+      });
+
+      // Log Audit for rejecting deletion
+      await fastify.logAudit({
+        tenantId,
+        userId: request.userId,
+        action: 'REJECT_DELETE_DEED',
+        resource: 'Deed',
+        resourceId: id,
+        payload: { title: deed.title, type: deed.type, rejectedBy: request.userId },
+      });
+
+      return reply.sendSuccess(null, 'Permintaan penghapusan akta berhasil ditolak');
+    } catch (error) {
+      console.error('Reject delete deed error:', error);
+      return reply.sendError('Gagal menolak penghapusan akta');
     }
   });
 };

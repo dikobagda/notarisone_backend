@@ -28,7 +28,7 @@ const serviceFeeRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =>
       });
 
       const mergedFees = DEFAULT_FEES.map(def => {
-        const saved = savedFees.find(sf => sf.category === def.category);
+        const saved = savedFees.find((sf: any) => sf.category === def.category);
         return {
           category: def.category,
           price: saved ? Number(saved.price) : def.price,
