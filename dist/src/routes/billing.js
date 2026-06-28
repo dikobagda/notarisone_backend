@@ -30,14 +30,17 @@ async function billingRoutes(fastify) {
                 description: zod_1.z.string(),
                 amount: zod_1.z.number(),
                 isTaxable: zod_1.z.boolean(),
+                taxType: zod_1.z.string().optional(),
+                taxRate: zod_1.z.number().optional(),
             })),
         });
         const body = schema.parse(request.body);
         // Calculate totals & taxes
         const subtotal = body.items.reduce((sum, item) => sum + item.amount, 0);
-        const taxAmount = body.items
-            .filter(i => i.isTaxable)
-            .reduce((sum, item) => sum + (item.amount * 0.11), 0); // PPN 11%
+        const taxAmount = body.items.reduce((sum, item) => {
+            const rate = item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0);
+            return sum + (item.amount * rate);
+        }, 0);
         const totalAmount = subtotal + taxAmount;
         const invoice = await prisma_1.prisma.invoice.create({
             data: {
@@ -54,6 +57,8 @@ async function billingRoutes(fastify) {
                         description: item.description,
                         unitPrice: item.amount,
                         taxable: item.isTaxable,
+                        taxType: item.taxType || (item.isTaxable ? 'PPN' : 'NONE'),
+                        taxRate: item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0),
                     })),
                 },
             },
@@ -69,25 +74,31 @@ async function billingRoutes(fastify) {
         });
         const body = schema.parse(request.body);
         const payment = await prisma_1.prisma.$transaction(async (tx) => {
-            const p = await tx.payment.create({
-                data: {
-                    invoiceId: body.invoiceId,
-                    amount: body.amount,
-                    method: body.method,
-                    status: 'SUCCESS',
-                },
-            });
-            // Update invoice status based on total paid
+            // ✅ Fetch invoice BEFORE creating payment to avoid double-counting
             const invoice = await tx.invoice.findUnique({
                 where: { id: body.invoiceId },
                 include: { payments: true },
             });
-            const previousPaid = invoice?.payments.reduce((sum, pay) => sum + Number(pay.amount), 0) || 0;
-            const totalAmount = Number(invoice?.totalAmount || 0);
-            if (previousPaid + body.amount > totalAmount) {
-                throw new Error(`Pembayaran melebihi sisa tagihan. Sisa: ${totalAmount - previousPaid}`);
+            if (!invoice)
+                throw new Error('Invoice tidak ditemukan');
+            const previousPaid = invoice.payments.reduce((sum, pay) => sum + Number(pay.amount), 0);
+            const totalAmount = Number(invoice.totalAmount);
+            const remaining = totalAmount - previousPaid;
+            // Allow a small floating-point tolerance (1 rupiah)
+            if (body.amount > remaining + 1) {
+                throw new Error(`Pembayaran melebihi sisa tagihan. Sisa: ${remaining}`);
             }
-            const totalPaid = previousPaid + body.amount;
+            // Clamp to exact remaining to avoid floating-point overshoot
+            const actualAmount = Math.min(body.amount, remaining);
+            const p = await tx.payment.create({
+                data: {
+                    invoiceId: body.invoiceId,
+                    amount: actualAmount,
+                    method: body.method,
+                    status: 'SUCCESS',
+                },
+            });
+            const totalPaid = previousPaid + actualAmount;
             const newStatus = totalPaid >= totalAmount ? 'PAID' : 'PARTIAL';
             await tx.invoice.update({
                 where: { id: body.invoiceId },
@@ -126,6 +137,8 @@ async function billingRoutes(fastify) {
                 description: zod_1.z.string(),
                 amount: zod_1.z.number(),
                 isTaxable: zod_1.z.boolean(),
+                taxType: zod_1.z.string().optional(),
+                taxRate: zod_1.z.number().optional(),
             })).optional(),
         });
         const body = schema.parse(request.body);
@@ -147,13 +160,16 @@ async function billingRoutes(fastify) {
                         description: item.description,
                         unitPrice: item.amount,
                         taxable: item.isTaxable,
+                        taxType: item.taxType || (item.isTaxable ? 'PPN' : 'NONE'),
+                        taxRate: item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0),
                     })),
                 });
                 // Recalculate
                 subtotal = body.items.reduce((sum, item) => sum + item.amount, 0);
-                taxAmount = body.items
-                    .filter(i => i.isTaxable)
-                    .reduce((sum, item) => sum + (item.amount * 0.11), 0);
+                taxAmount = body.items.reduce((sum, item) => {
+                    const rate = item.taxRate !== undefined ? item.taxRate : (item.isTaxable ? 0.11 : 0.0);
+                    return sum + (item.amount * rate);
+                }, 0);
                 totalAmount = subtotal + taxAmount;
             }
             return await tx.invoice.update({

@@ -117,17 +117,86 @@ const adminRoutes = async (fastify) => {
             return reply.sendError('Gagal memperbarui status tenant');
         }
     });
-    // GET platform stats
+    // GET platform stats — comprehensive dashboard overview
     fastify.get('/stats', async (request, reply) => {
-        const tenantCount = await prisma_1.prisma.tenant.count();
-        const userCount = await prisma_1.prisma.user.count();
-        const deedCount = await prisma_1.prisma.deed.count();
-        return reply.sendSuccess({
-            tenantCount,
-            userCount,
-            deedCount,
-            revenue: 0, // Placeholder
-        });
+        try {
+            // Core counts
+            const [tenantCount, userCount, deedCount] = await Promise.all([
+                prisma_1.prisma.tenant.count({ where: { deletedAt: null } }),
+                prisma_1.prisma.user.count(),
+                prisma_1.prisma.deed.count(),
+            ]);
+            // Tenant status breakdown
+            const [activeTenants, suspendedTenants, trialTenants] = await Promise.all([
+                prisma_1.prisma.tenant.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+                prisma_1.prisma.tenant.count({ where: { status: 'SUSPENDED', deletedAt: null } }),
+                prisma_1.prisma.tenant.count({ where: { status: 'TRIAL', deletedAt: null } }),
+            ]);
+            // Subscription tier breakdown
+            const [starterCount, professionalCount, enterpriseCount] = await Promise.all([
+                prisma_1.prisma.tenant.count({ where: { subscription: 'STARTER', deletedAt: null } }),
+                prisma_1.prisma.tenant.count({ where: { subscription: 'PROFESSIONAL', deletedAt: null } }),
+                prisma_1.prisma.tenant.count({ where: { subscription: 'ENTERPRISE', deletedAt: null } }),
+            ]);
+            // Recent 5 tenants for quick overview
+            const recentTenants = await prisma_1.prisma.tenant.findMany({
+                where: { deletedAt: null },
+                select: {
+                    id: true,
+                    name: true,
+                    status: true,
+                    subscription: true,
+                    createdAt: true,
+                    _count: { select: { users: true, deeds: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+            });
+            // MRR calculation from subscription plans
+            let mrr = 0;
+            try {
+                const plans = await prisma_1.prisma.subscriptionPlan.findMany();
+                const planPrices = plans.reduce((acc, plan) => {
+                    acc[plan.slug] = Number(plan.price);
+                    return acc;
+                }, {});
+                const paidTenants = await prisma_1.prisma.tenant.findMany({
+                    where: {
+                        status: 'ACTIVE',
+                        subscription: { in: ['STARTER', 'PROFESSIONAL', 'ENTERPRISE'] },
+                        deletedAt: null,
+                    },
+                });
+                paidTenants.forEach((t) => {
+                    mrr += planPrices[t.subscription] || 0;
+                });
+            }
+            catch {
+                // subscriptionPlan table may not exist yet
+            }
+            return reply.sendSuccess({
+                tenantCount,
+                userCount,
+                deedCount,
+                mrr,
+                tenantsByStatus: {
+                    active: activeTenants,
+                    suspended: suspendedTenants,
+                    trial: trialTenants,
+                },
+                tenantsBySubscription: {
+                    starter: starterCount,
+                    professional: professionalCount,
+                    enterprise: enterpriseCount,
+                    trial: trialTenants,
+                },
+                recentTenants,
+            });
+        }
+        catch (error) {
+            fastify.log.error(error);
+            return reply.sendError('Gagal mengambil statistik platform');
+        }
     });
     // POST Manual Onboarding (Tenant + Notary User)
     fastify.post('/tenants/onboard', async (request, reply) => {

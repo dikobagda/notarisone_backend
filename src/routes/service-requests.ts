@@ -30,11 +30,21 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
     if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
 
     try {
+      const whereClause: any = { tenantId };
+      
+      // Jika login sebagai staff (PEGAWAI), hanya tampilkan data yang di-assign ke staff tersebut
+      if (request.role === 'PEGAWAI') {
+        whereClause.userId = request.userId;
+      }
+
       const requests = await prisma.serviceRequest.findMany({
-        where: { tenantId },
+        where: whereClause,
         include: {
           client: {
             select: { name: true, phone: true, nik: true }
+          },
+          assignedTo: {
+            select: { id: true, name: true, role: true }
           },
           _count: {
             select: { deeds: true }
@@ -77,6 +87,7 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           documents: body.documents,
           additionalJobs: body.additionalJobs,
           estimatedCost: body.estimatedCost,
+          userId: body.userId,
           status: 'PENDING'
         }
       });
@@ -147,6 +158,9 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           client: {
             select: { name: true, phone: true, nik: true }
           },
+          assignedTo: {
+            select: { id: true, name: true, role: true }
+          },
           deeds: {
             select: {
               id: true,
@@ -186,6 +200,7 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
           documents: body.documents,
           additionalJobs: body.additionalJobs,
           estimatedCost: body.estimatedCost,
+          userId: body.userId,
         }
       });
 
@@ -292,6 +307,42 @@ export default async function serviceRequestRoutes(fastify: FastifyInstance) {
     } catch (error) {
       console.error(error);
       return reply.sendError('Gagal memperbarui data serah terima');
+    }
+  });
+
+  // PATCH assign staff
+  fastify.patch('/:id/assign', async (request, reply) => {
+    const { id } = request.params as any;
+    const { userId } = request.body as any;
+
+    try {
+      const updated = await prisma.serviceRequest.update({
+        where: { id },
+        data: { userId },
+        include: {
+          assignedTo: {
+            select: { id: true, name: true, role: true }
+          }
+        }
+      });
+
+      // Audit Log
+      await fastify.logAudit({
+        tenantId: updated.tenantId,
+        userId: request.userId,
+        action: 'ASSIGN_SERVICE_REQUEST',
+        resource: 'ServiceRequest',
+        resourceId: updated.id,
+        payload: {
+          clientName: updated.clientName,
+          assignedToName: updated.assignedTo?.name || 'Unassigned'
+        }
+      });
+
+      return reply.sendSuccess(updated, 'Tugas berhasil didisposisikan');
+    } catch (error) {
+      console.error(error);
+      return reply.sendError('Gagal mendisposisikan tugas');
     }
   });
 }

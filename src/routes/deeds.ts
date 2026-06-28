@@ -416,6 +416,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
     let filePart: any = null;
     let deedNumber: string | null = null;
     let stakeholderId: string | null = null;
+    let finalizationDate: string | null = null;
     
     for await (const part of parts) {
       if (part.type === 'file') {
@@ -427,6 +428,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
         if (fieldname === 'type') type = value;
         if (fieldname === 'deedNumber') deedNumber = value;
         if (fieldname === 'stakeholderId') stakeholderId = value;
+        if (fieldname === 'finalizationDate') finalizationDate = value;
       }
     }
 
@@ -524,6 +526,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
               tenantId, 
               deedId: id, 
               repertoriumNumber: finalDeedNumber as string, 
+              date: finalizationDate ? new Date(finalizationDate) : new Date(),
               description: `Finalisasi Akta Otomatis: ${deed.title}` 
             }
           });
@@ -630,7 +633,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
   // POST finalize
   fastify.post('/:id/finalize', async (request, reply) => {
     const { id } = request.params as { id: string };
-    const { deedNumber } = request.body as { deedNumber: string };
+    const { deedNumber, finalizationDate } = request.body as { deedNumber: string, finalizationDate?: string };
     const tenantId = (request.body as any).tenantId || (request.query as any).tenantId;
 
     if (!tenantId) return reply.sendError('Tenant ID wajib disertakan');
@@ -650,6 +653,7 @@ const deedRoutes: FastifyPluginAsync = async (fastify) => {
           tenantId, 
           deedId: id, 
           repertoriumNumber: deedNumber, 
+          date: finalizationDate ? new Date(finalizationDate) : new Date(),
           description: `Finalisasi Akta: ${deed.title}` 
         } 
       });

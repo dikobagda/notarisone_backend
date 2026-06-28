@@ -111,7 +111,8 @@ const authApiRoutes = async (fastify) => {
                     role: user.role,
                     tenantId: user.tenantId,
                     plan: user.tenant.subscription,
-                    allowedMenus: user.allowedMenus
+                    allowedMenus: user.allowedMenus,
+                    phone: user.phone ?? null,
                 },
                 tenant: {
                     id: user.tenant.id,
@@ -256,6 +257,7 @@ const authApiRoutes = async (fastify) => {
                         password: hashedPassword,
                         role: invite.role,
                         tenantId: invite.tenantId,
+                        allowedMenus: invite.allowedMenus ?? undefined,
                     }
                 });
                 await tx.tenantTeams.update({

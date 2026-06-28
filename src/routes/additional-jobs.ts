@@ -140,6 +140,40 @@ const additionalJobsRoutes: FastifyPluginAsync = async (fastify: FastifyInstance
       return reply.sendError('Gagal menghapus pekerjaan tambahan', 500);
     }
   });
+
+  // POST bulk delete jobs
+  fastify.post('/bulk-delete', async (request, reply) => {
+    const { tenantId } = request.query as { tenantId: string };
+    if (!tenantId) return reply.sendError('Tenant ID wajib disertakan', 400);
+
+    const schema = z.object({
+      ids: z.array(z.string()).min(1, 'Pilih minimal satu pekerjaan untuk dihapus'),
+    });
+
+    const result = schema.safeParse(request.body);
+    if (!result.success) {
+      return reply.code(422).send({
+        success: false,
+        message: 'Data tidak valid',
+        errors: result.error.format(),
+      });
+    }
+
+    const { ids } = result.data;
+
+    try {
+      const deleteResult = await prisma.additionalJobMaster.deleteMany({
+        where: {
+          id: { in: ids },
+          tenantId
+        }
+      });
+      return reply.sendSuccess({ count: deleteResult.count }, `Berhasil menghapus ${deleteResult.count} pekerjaan tambahan`);
+    } catch (error) {
+      request.log.error(error);
+      return reply.sendError('Gagal menghapus pekerjaan tambahan secara massal', 500);
+    }
+  });
 };
 
 export default additionalJobsRoutes;

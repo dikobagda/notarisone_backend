@@ -32,8 +32,12 @@ const notifications_1 = __importDefault(require("./routes/notifications"));
 const waarmerking_1 = __importDefault(require("./routes/waarmerking"));
 const additional_jobs_1 = __importDefault(require("./routes/additional-jobs"));
 const service_requests_1 = __importDefault(require("./routes/service-requests"));
+const service_fees_1 = __importDefault(require("./routes/service-fees"));
 const library_1 = __importDefault(require("./routes/library"));
 const ai_1 = __importDefault(require("./routes/ai"));
+const required_documents_1 = __importDefault(require("./routes/required-documents"));
+const tickets_1 = __importDefault(require("./routes/tickets"));
+const deed_types_1 = __importDefault(require("./routes/deed-types"));
 const multipart_1 = __importDefault(require("@fastify/multipart"));
 const cors_1 = __importDefault(require("@fastify/cors"));
 const prisma_1 = require("./lib/prisma");
@@ -92,8 +96,12 @@ server.register(notifications_1.default, { prefix: '/api/notifications' });
 server.register(waarmerking_1.default, { prefix: '/api/waarmerking' });
 server.register(additional_jobs_1.default, { prefix: '/api/additional-jobs' });
 server.register(service_requests_1.default, { prefix: '/api/service-requests' });
+server.register(service_fees_1.default, { prefix: '/api/service-fees' });
 server.register(library_1.default, { prefix: '/api/library' });
 server.register(ai_1.default, { prefix: '/api/ai' });
+server.register(required_documents_1.default, { prefix: '/api/required-documents' });
+server.register(tickets_1.default, { prefix: '/api/tickets' });
+server.register(deed_types_1.default, { prefix: '/api/deed-types' });
 // Health Check
 server.get('/', async (request, reply) => {
     return {

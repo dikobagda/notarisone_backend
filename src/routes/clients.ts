@@ -22,8 +22,8 @@ const clientSchema = z.object({
   kecamatan: z.string().optional().or(z.literal('')),
   kota: z.string().optional().or(z.literal('')),
   provinsi: z.string().optional().or(z.literal('')),
-  phone: z.string().min(1, 'Nomor WhatsApp wajib diisi'),
-  email: z.string().email('Email tidak valid').min(1, 'Email wajib diisi'),
+  phone: z.string().optional().or(z.literal('')),
+  email: z.string().email('Email tidak valid').optional().or(z.literal('')),
   ktpPath: z.string().optional().or(z.literal('')),
   npwpPath: z.string().optional().or(z.literal('')),
   profilingData: z.object({

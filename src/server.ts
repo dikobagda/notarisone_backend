@@ -33,6 +33,7 @@ import serviceFeeRoutes from './routes/service-fees';
 import libraryRoutes from './routes/library';
 import aiRoutes from './routes/ai';
 import requiredDocumentsRoutes from './routes/required-documents';
+import ticketsRoutes from './routes/tickets';
 import deedTypesRoutes from './routes/deed-types';
 import multipart from '@fastify/multipart';
 import cors from '@fastify/cors';
@@ -108,6 +109,7 @@ server.register(serviceFeeRoutes, { prefix: '/api/service-fees' });
 server.register(libraryRoutes, { prefix: '/api/library' });
 server.register(aiRoutes, { prefix: '/api/ai' });
 server.register(requiredDocumentsRoutes, { prefix: '/api/required-documents' });
+server.register(ticketsRoutes, { prefix: '/api/tickets' });
 server.register(deedTypesRoutes, { prefix: '/api/deed-types' });
 
 // Health Check

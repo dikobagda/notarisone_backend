@@ -38,6 +38,7 @@ model Tenant {
   serviceFees     ServiceFeeMaster[]
   requiredDocuments RequiredDocumentMaster[]
   deedTypes       DeedTypeMaster[]
+  tickets         Ticket[]
 }
 
 model TenantTeams {
@@ -81,6 +82,7 @@ model User {
   appointments         Appointment[]
   tenant               Tenant     @relation(fields: [tenantId], references: [id])
   notifications        Notification[]
+  serviceRequests      ServiceRequest[]     @relation("AssignedToServiceRequests")
 
   @@index([tenantId], map: "User_tenantId_fkey")
 }
@@ -538,6 +540,8 @@ model ServiceRequest {
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   subCategory     String?
+  userId          String?
+  assignedTo      User?                @relation("AssignedToServiceRequests", fields: [userId], references: [id])
 
   client          Client?              @relation(fields: [clientId], references: [id])
   tenant          Tenant               @relation(fields: [tenantId], references: [id])
@@ -545,6 +549,7 @@ model ServiceRequest {
 
   @@index([clientId])
   @@index([tenantId])
+  @@index([userId])
 }
 
 enum ServiceCategory {
@@ -656,5 +661,43 @@ model DeedTypeMaster {
 
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   @@index([tenantId])
+}
+
+model Ticket {
+  id          String         @id @default(cuid())
+  tenantId    String
+  title       String
+  description String         @db.Text
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  category    TicketCategory @default(TECHNICAL)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  COMPLAINT
+  COMPLIANCE
+  INQUIRY
+  TECHNICAL
 }
 
