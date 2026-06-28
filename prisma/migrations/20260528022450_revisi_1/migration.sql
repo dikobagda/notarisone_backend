@@ -10,10 +10,10 @@
 
 */
 -- DropIndex
-DROP INDEX `Client_nik_key` ON `Client`;
+-- DROP INDEX `Client_nik_key` ON `Client`;
 
 -- DropIndex
-DROP INDEX `User_auth0Id_key` ON `User`;
+-- DROP INDEX `User_auth0Id_key` ON `User`;
 
 -- AlterTable
 ALTER TABLE `Appointment` ADD COLUMN `clientId` VARCHAR(191) NULL,
