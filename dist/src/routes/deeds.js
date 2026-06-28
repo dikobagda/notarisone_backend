@@ -378,6 +378,7 @@ const deedRoutes = async (fastify) => {
         let filePart = null;
         let deedNumber = null;
         let stakeholderId = null;
+        let finalizationDate = null;
         for await (const part of parts) {
             if (part.type === 'file') {
                 filePart = { buffer: await part.toBuffer(), filename: part.filename, mimetype: part.mimetype };
@@ -391,6 +392,8 @@ const deedRoutes = async (fastify) => {
                     deedNumber = value;
                 if (fieldname === 'stakeholderId')
                     stakeholderId = value;
+                if (fieldname === 'finalizationDate')
+                    finalizationDate = value;
             }
         }
         const normalizedType = type?.toLowerCase();
@@ -477,6 +480,7 @@ const deedRoutes = async (fastify) => {
                             tenantId,
                             deedId: id,
                             repertoriumNumber: finalDeedNumber,
+                            date: finalizationDate ? new Date(finalizationDate) : new Date(),
                             description: `Finalisasi Akta Otomatis: ${deed.title}`
                         }
                     });
@@ -578,7 +582,7 @@ const deedRoutes = async (fastify) => {
     // POST finalize
     fastify.post('/:id/finalize', async (request, reply) => {
         const { id } = request.params;
-        const { deedNumber } = request.body;
+        const { deedNumber, finalizationDate } = request.body;
         const tenantId = request.body.tenantId || request.query.tenantId;
         if (!tenantId)
             return reply.sendError('Tenant ID wajib disertakan');
@@ -597,6 +601,7 @@ const deedRoutes = async (fastify) => {
                     tenantId,
                     deedId: id,
                     repertoriumNumber: deedNumber,
+                    date: finalizationDate ? new Date(finalizationDate) : new Date(),
                     description: `Finalisasi Akta: ${deed.title}`
                 }
             });

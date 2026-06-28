@@ -21,8 +21,8 @@ const clientSchema = zod_1.z.object({
     kecamatan: zod_1.z.string().optional().or(zod_1.z.literal('')),
     kota: zod_1.z.string().optional().or(zod_1.z.literal('')),
     provinsi: zod_1.z.string().optional().or(zod_1.z.literal('')),
-    phone: zod_1.z.string().min(1, 'Nomor WhatsApp wajib diisi'),
-    email: zod_1.z.string().email('Email tidak valid').min(1, 'Email wajib diisi'),
+    phone: zod_1.z.string().optional().or(zod_1.z.literal('')),
+    email: zod_1.z.string().email('Email tidak valid').optional().or(zod_1.z.literal('')),
     ktpPath: zod_1.z.string().optional().or(zod_1.z.literal('')),
     npwpPath: zod_1.z.string().optional().or(zod_1.z.literal('')),
     profilingData: zod_1.z.object({
